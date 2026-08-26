@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../lib/firebase-admin.ts';
+import { JWT_SECRET } from '../lib/jwt.ts';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
   user?: { uid: string, email?: string, phone?: string };
 }
-
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-senemarket-key-2026';
 
 export const requireAuth = async (
   req: AuthRequest,
@@ -19,14 +18,21 @@ export const requireAuth = async (
   }
 
   const token = authHeader.split('Bearer ')[1];
-  try {
-    // If token is a short custom JWT (Firebase tokens are usually very long > 800 chars)
-    if (token.split('.').length === 3 && token.length < 500) {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      req.user = { uid: decoded.uid, phone: decoded.phone };
-      return next();
-    }
 
+  // Verify as our own custom JWT first — this checks the signature, not a
+  // guess based on token length, so it can't be confused with (or used to
+  // bypass) Firebase ID token verification. Only on failure does this fall
+  // through to Firebase, which is the actual signal that it's a different
+  // kind of token.
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    req.user = { uid: decoded.uid, phone: decoded.phone };
+    return next();
+  } catch {
+    // Not one of our tokens — fall through to Firebase verification below.
+  }
+
+  try {
     const decodedToken = await adminAuth.verifyIdToken(token);
     req.user = decodedToken;
     next();

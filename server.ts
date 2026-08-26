@@ -9,13 +9,16 @@ import { db } from './src/db/index.ts';
 import { vendors, listings } from './src/db/schema.ts';
 import { eq, desc } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from './src/lib/jwt.ts';
+import { checkRateLimit } from './src/lib/rateLimit.ts';
 
-const upload = multer({ storage: multer.memoryStorage() });
+// 5 MB cap: these routes buffer the whole upload into process memory
+// (memoryStorage), so an unbounded size is a trivial memory-exhaustion DoS.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
-  const JWT_SECRET = process.env.JWT_SECRET || 'secret-senemarket-key-2026';
 
   app.use(express.json());
 
@@ -29,7 +32,14 @@ async function startServer() {
     try {
       const { phone, pin } = req.body;
       if (!phone || !pin) return res.status(400).json({ error: "Phone and PIN required" });
-      
+
+      // A 4-digit PIN is only 10,000 combinations, so this route needs a
+      // real cost to guessing — cap attempts per phone number rather than
+      // relying on the PIN comparison alone.
+      if (!checkRateLimit(`auth:${phone}`, 5, 15 * 60 * 1000)) {
+        return res.status(429).json({ error: "Trop de tentatives. Reessayez plus tard." });
+      }
+
       const user = await getOrCreatePhoneUser(phone, pin);
       const token = jwt.sign({ uid: user.uid, phone: user.phoneNumber }, JWT_SECRET, { expiresIn: '7d' });
       
@@ -107,9 +117,14 @@ async function startServer() {
       const uid = req.user!.uid;
       const { title, description, price } = req.body;
       const user = await getUserWithVendor(uid);
-      
+
       if (!user || !user.vendor) {
         return res.status(403).json({ error: "User is not a vendor" });
+      }
+
+      const priceNumber = Number(price);
+      if (!title || !Number.isFinite(priceNumber) || priceNumber <= 0) {
+        return res.status(400).json({ error: "Titre et prix (nombre positif) requis" });
       }
 
       // In a real app, upload file to GCS/Firebase Storage and get URL.
@@ -123,7 +138,7 @@ async function startServer() {
         vendorId: user.vendor.id,
         title,
         description,
-        price: price.toString(),
+        price: priceNumber.toString(),
         image: imageUrl,
         whatsapp: user.vendor.whatsappNumber,
       }).returning();
@@ -136,10 +151,17 @@ async function startServer() {
   });
 
   // Mock Gemini API for Description Generation
-  app.post("/api/ai/generate", upload.single("image"), async (req, res) => {
+  app.post("/api/ai/generate", requireAuth, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const { title } = req.body;
       const file = req.file;
+
+      // This spends the shared GEMINI_API_KEY quota per call — cap it per
+      // signed-in user rather than leaving it open to anyone who can reach
+      // the route.
+      if (!checkRateLimit(`ai:${req.user!.uid}`, 20, 60 * 60 * 1000)) {
+        return res.status(429).json({ error: "Trop de generations. Reessayez plus tard." });
+      }
 
       if (!process.env.GEMINI_API_KEY) {
         return res.status(500).json({ error: "Gemini API key is not configured." });

@@ -37,6 +37,7 @@ export function PostView() {
 
     setIsGenerating(true);
     try {
+      const token = await getToken();
       const formData = new FormData();
       formData.append("title", title);
       if (imageFile) {
@@ -45,6 +46,7 @@ export function PostView() {
 
       const res = await fetch("/api/ai/generate", {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
 
