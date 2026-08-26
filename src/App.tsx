@@ -9,7 +9,7 @@ import { HomeView } from "./components/HomeView";
 import { PostView } from "./components/PostView";
 import { WalletView } from "./components/WalletView";
 import { ProfileView } from "./components/ProfileView";
-import { AuthProvider, useAuth } from "./components/AuthContext";
+import { useAuth } from "./components/AuthContext";
 import { VendorOnboarding } from "./components/VendorOnboarding";
 import { AuthView } from "./components/AuthView";
 
@@ -59,10 +59,6 @@ function AppContent() {
 }
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  return <AppContent />;
 }
 

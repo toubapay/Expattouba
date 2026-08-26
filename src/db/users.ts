@@ -4,11 +4,20 @@ import { eq } from 'drizzle-orm';
 import { hashPin, isLegacyPin, verifyPin } from '../lib/pin.ts';
 
 export async function getOrCreateUser(uid: string, email: string) {
+  const adminEmails = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const grantsAdmin = !!email && adminEmails.includes(email.toLowerCase());
+
   const result = await db.insert(users)
-    .values({ uid, email })
+    .values({ uid, email, isAdmin: grantsAdmin })
     .onConflictDoUpdate({
       target: users.uid,
-      set: { email },
+      // Only ever grants admin here, never revokes it — an ADMIN_EMAILS
+      // entry dropping out on the next deploy shouldn't silently demote
+      // someone; that's an explicit action via the admin users API instead.
+      set: grantsAdmin ? { email, isAdmin: true } : { email },
     })
     .returning();
 
@@ -39,6 +48,18 @@ export async function getOrCreatePhoneUser(phone: string, pin: string) {
   }).returning();
 
   return result[0];
+}
+
+/** Just the vendor id behind a uid, or null if they aren't a vendor — used
+ * by chat's ownership checks, which don't need the rest of the profile. */
+export async function getVendorIdForUid(uid: string) {
+  const rows = await db
+    .select({ vendorId: vendors.id })
+    .from(users)
+    .innerJoin(vendors, eq(vendors.userId, users.id))
+    .where(eq(users.uid, uid))
+    .limit(1);
+  return rows[0]?.vendorId ?? null;
 }
 
 export async function getUserWithVendor(uid: string) {

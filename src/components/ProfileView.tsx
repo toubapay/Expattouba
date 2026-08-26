@@ -1,8 +1,12 @@
-import { Settings, Shield, Award, ChevronRight, LogOut } from "lucide-react";
+import { useState } from "react";
+import { AnimatePresence } from "motion/react";
+import { Settings, Shield, Award, ChevronRight, LogOut, MessageCircle } from "lucide-react";
 import { useAuth } from "./AuthContext";
+import { ChatInboxView } from "./ChatInboxView";
 
 export function ProfileView() {
   const { user, dbUser, logOut } = useAuth();
+  const [showMessages, setShowMessages] = useState(false);
 
   const initials = dbUser?.vendor?.boutiqueName?.substring(0, 2).toUpperCase() || "US";
 
@@ -66,6 +70,26 @@ export function ProfileView() {
           </div>
         )}
 
+        {user && (
+          <div>
+            <h3 className="text-xs font-bold text-gray-400 uppercase ml-2 mb-2">Messages</h3>
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <button
+                onClick={() => setShowMessages(true)}
+                className="w-full flex items-center justify-between p-4 active:bg-gray-50"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4" />
+                  </div>
+                  <span className="font-bold text-sm text-gray-700">Mes messages</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div>
           <h3 className="text-xs font-bold text-gray-400 uppercase ml-2 mb-2">Paramètres</h3>
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -78,7 +102,7 @@ export function ProfileView() {
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
-            <button 
+            <button
               onClick={logOut}
               className="w-full flex items-center justify-between p-4 active:bg-gray-50"
             >
@@ -92,6 +116,10 @@ export function ProfileView() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showMessages && <ChatInboxView onBack={() => setShowMessages(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

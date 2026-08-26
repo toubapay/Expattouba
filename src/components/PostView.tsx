@@ -1,21 +1,36 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Camera, Image as ImageIcon, Sparkles, Loader2, X, CheckCircle2 } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { motion, AnimatePresence } from "motion/react";
+
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+}
 
 export function PostView() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const { user, getToken } = useAuth();
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/v1/categories")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setCategories)
+      .catch(() => {});
+  }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,6 +95,7 @@ export function PostView() {
       formData.append("title", title);
       formData.append("price", price);
       formData.append("description", description);
+      if (category) formData.append("category", category);
       if (imageFile) {
         formData.append("image", imageFile);
       }
@@ -92,16 +108,18 @@ export function PostView() {
         body: formData,
       });
 
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setShowConfirm(false);
         alert("Annonce publiée avec succès !");
         setTitle("");
         setPrice("");
         setDescription("");
+        setCategory("");
         setImageFile(null);
         setImagePreview(null);
       } else {
-        alert("Erreur lors de la publication.");
+        alert(data.error || "Erreur lors de la publication.");
       }
     } catch (e) {
       console.error(e);
@@ -171,6 +189,22 @@ export function PostView() {
                 placeholder="Ex: IPhone 14 Pro Max 256Go"
                 className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">Catégorie</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="">Choisir une catégorie...</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.icon} {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

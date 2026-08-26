@@ -1,6 +1,8 @@
-import { motion } from "motion/react";
-import { ArrowLeft, Share2, MapPin, ShieldCheck, Flag } from "lucide-react";
-import { Listing } from "../types";
+import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { ArrowLeft, Share2, MapPin, ShieldCheck, Flag, Phone, MessageCircle } from "lucide-react";
+import { useAuth } from "./AuthContext";
+import { ChatPanel } from "./ChatPanel";
 
 interface ProductDetailProps {
   listing: any;
@@ -8,6 +10,36 @@ interface ProductDetailProps {
 }
 
 export function ProductDetailView({ listing, onBack }: ProductDetailProps) {
+  const { user, getToken } = useAuth();
+  const [chatThreadId, setChatThreadId] = useState<string | null>(null);
+  const [openingChat, setOpeningChat] = useState(false);
+
+  const openChat = async () => {
+    if (!user) {
+      alert("Connectez-vous pour discuter avec le vendeur.");
+      return;
+    }
+    setOpeningChat(true);
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/v1/chat/threads", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ listingId: listing.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Impossible d'ouvrir la conversation");
+      setChatThreadId(data.id);
+    } catch (e: any) {
+      alert(e.message || "Erreur réseau");
+    } finally {
+      setOpeningChat(false);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ x: "100%" }}
@@ -83,6 +115,35 @@ export function ProductDetailView({ listing, onBack }: ProductDetailProps) {
                 </span>
               )}
             </div>
+
+            {listing.whatsapp && (
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                <a
+                  href={`tel:${listing.whatsapp}`}
+                  className="flex flex-col items-center justify-center space-y-1 bg-white border border-gray-200 rounded-xl py-3 text-gray-700"
+                >
+                  <Phone className="w-4 h-4" />
+                  <span className="text-[11px] font-bold">Appeler</span>
+                </a>
+                <a
+                  href={`https://wa.me/${listing.whatsapp.replace(/[^0-9]/g, "")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex flex-col items-center justify-center space-y-1 bg-[#25D366] rounded-xl py-3 text-white"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-[11px] font-bold">WhatsApp</span>
+                </a>
+                <button
+                  onClick={openChat}
+                  disabled={openingChat}
+                  className="flex flex-col items-center justify-center space-y-1 bg-orange-50 border border-orange-100 rounded-xl py-3 text-orange-600 disabled:opacity-60"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-[11px] font-bold">Discuter</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <button className="flex items-center space-x-2 text-red-500 text-sm font-bold mt-8 justify-center w-full">
@@ -97,15 +158,21 @@ export function ProductDetailView({ listing, onBack }: ProductDetailProps) {
         <button className="flex-1 bg-orange-600 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-orange-200">
           Acheter (Wallet)
         </button>
-        <a 
-          href={`https://wa.me/${listing.whatsapp}`}
-          target="_blank"
-          rel="noreferrer"
-          className="flex-1 bg-[#25D366] text-white py-4 rounded-xl font-bold text-[15px] flex items-center justify-center"
+        <button
+          onClick={openChat}
+          disabled={openingChat}
+          className="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold text-[15px] flex items-center justify-center space-x-2 disabled:opacity-60"
         >
-          WhatsApp
-        </a>
+          <MessageCircle className="w-4 h-4" />
+          <span>Discuter</span>
+        </button>
       </div>
+
+      <AnimatePresence>
+        {chatThreadId && (
+          <ChatPanel threadId={chatThreadId} vendorName={listing.vendorName} onClose={() => setChatThreadId(null)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

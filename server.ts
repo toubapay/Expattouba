@@ -6,11 +6,16 @@ import multer from "multer";
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { getOrCreateUser, getUserWithVendor, getOrCreatePhoneUser } from './src/db/users.ts';
 import { db } from './src/db/index.ts';
-import { vendors, listings } from './src/db/schema.ts';
-import { eq, desc } from 'drizzle-orm';
+import { vendors } from './src/db/schema.ts';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from './src/lib/jwt.ts';
 import { checkRateLimit } from './src/lib/rateLimit.ts';
+import { adminRouter } from './src/routes/admin.ts';
+import { chatRouter } from './src/routes/chat.ts';
+import { seedCategories, listActiveCategories } from './src/db/categories.ts';
+import { seedVendorPlans } from './src/db/vendorPlans.ts';
+import { getHomeFeed, createListingForVendor, ListingLimitError } from './src/db/listings.ts';
+import { getSettings } from './src/db/settings.ts';
 
 // 5 MB cap: these routes buffer the whole upload into process memory
 // (memoryStorage), so an unbounded size is a trivial memory-exhaustion DoS.
@@ -21,6 +26,13 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+  app.use('/api/admin', adminRouter);
+  app.use('/api/v1/chat', chatRouter);
+
+  // Seeded once, on an empty table — an admin's edits afterwards are never
+  // touched again, same pattern as the sister app's seedServices().
+  await seedCategories();
+  await seedVendorPlans();
 
   // API Routes
   app.get("/api/health", (req, res) => {
@@ -87,25 +99,43 @@ async function startServer() {
     }
   });
 
-  // Get feed listings
+  // Home page categories rail — admin-editable, seeded once from the old
+  // hardcoded list (see seedCategories).
+  app.get("/api/v1/categories", async (_req, res) => {
+    try {
+      res.json(await listActiveCategories());
+    } catch (error) {
+      console.error("Fetch categories error:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  // One request for the whole home screen: the active feed plus which of
+  // those listings are "featured" right now — a vendor plan lapsing takes
+  // effect on the very next fetch since featured is derived, not stored.
+  app.get("/api/v1/home", async (req, res) => {
+    try {
+      const category = typeof req.query.category === "string" ? req.query.category : undefined;
+      const feed = await getHomeFeed(category);
+      // Only the home-page display settings go out here — commission/fee
+      // defaults are margin, not something an unauthenticated endpoint
+      // should ever publish (same reasoning as the sister app's
+      // publicService()).
+      const { home } = await getSettings();
+      res.json({ ...feed, home });
+    } catch (error) {
+      console.error("Fetch home feed error:", error);
+      res.status(500).json({ error: "Failed to fetch home feed" });
+    }
+  });
+
+  // Kept for any existing caller — same feed, without the featured split.
   app.get("/api/v1/listings", async (req, res) => {
     try {
-      // For simplicity, just joining to get vendor details
-      const feed = await db.select({
-        id: listings.id,
-        title: listings.title,
-        price: listings.price,
-        description: listings.description,
-        image: listings.image,
-        currency: listings.currency,
-        whatsapp: listings.whatsapp,
-        vendorId: vendors.id,
-        vendorName: vendors.boutiqueName,
-        vendorBadge: vendors.badgeStatus,
-      }).from(listings).innerJoin(vendors, eq(listings.vendorId, vendors.id)).orderBy(desc(listings.createdAt));
-      
-      res.json(feed);
-    } catch (error: any) {
+      const category = typeof req.query.category === "string" ? req.query.category : undefined;
+      const { listings } = await getHomeFeed(category);
+      res.json(listings);
+    } catch (error) {
       console.error("Fetch listings error:", error);
       res.status(500).json({ error: "Failed to fetch listings" });
     }
@@ -115,7 +145,7 @@ async function startServer() {
   app.post("/api/v1/listings", requireAuth, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const uid = req.user!.uid;
-      const { title, description, price } = req.body;
+      const { title, description, price, category } = req.body;
       const user = await getUserWithVendor(uid);
 
       if (!user || !user.vendor) {
@@ -134,17 +164,21 @@ async function startServer() {
          imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
       }
 
-      const newListing = await db.insert(listings).values({
+      const newListing = await createListingForVendor({
         vendorId: user.vendor.id,
         title,
         description,
         price: priceNumber.toString(),
         image: imageUrl,
         whatsapp: user.vendor.whatsappNumber,
-      }).returning();
+        category: category || null,
+      });
 
-      res.json(newListing[0]);
+      res.json(newListing);
     } catch (error: any) {
+      if (error instanceof ListingLimitError) {
+        return res.status(403).json({ error: error.message });
+      }
       console.error("Create listing error:", error);
       res.status(500).json({ error: "Failed to create listing" });
     }
