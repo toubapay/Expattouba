@@ -1,0 +1,156 @@
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Search, Bell, MapPin, Loader2 } from "lucide-react";
+import { Listing } from "../types";
+import { ProductDetailView } from "./ProductDetailView";
+
+const CATEGORIES = [
+  { id: "fashion", name: "Mode", icon: "👕" },
+  { id: "tech", name: "Tech", icon: "📱" },
+  { id: "home", name: "Maison", icon: "🛋️" },
+  { id: "beauty", name: "Beauté", icon: "✨" },
+];
+
+export function HomeView() {
+  const [listings, setListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedListing, setSelectedListing] = useState<any | null>(null);
+
+  const fetchListings = async () => {
+    try {
+      const res = await fetch("/api/v1/listings");
+      if (res.ok) {
+        const data = await res.json();
+        setListings(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchListings();
+  }, []);
+
+  return (
+    <>
+      <div className="min-h-full">
+        {/* Header */}
+        <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-40 border-b border-gray-50">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-2 text-orange-600">
+              <MapPin className="w-5 h-5" />
+              <span className="font-bold text-lg">Dakar, SN</span>
+            </div>
+            <button className="p-2 relative bg-gray-50 rounded-full">
+              <Bell className="w-5 h-5 text-gray-700" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Rechercher sur SeneMarket..." 
+              className="w-full bg-gray-100 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-100 transition-shadow"
+            />
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div className="px-4 py-6">
+          <h2 className="text-lg font-bold mb-4 text-gray-900">Catégories</h2>
+          <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+            {CATEGORIES.map((cat) => (
+              <button key={cat.id} className="flex flex-col items-center space-y-2 min-w-[72px]">
+                <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-2xl border border-orange-100">
+                  {cat.icon}
+                </div>
+                <span className="text-xs font-medium text-gray-700">{cat.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Feed */}
+        <div className="px-4 pb-6">
+          <h2 className="text-lg font-bold mb-4 text-gray-900">Nouveautés</h2>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+            </div>
+          ) : listings.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 font-medium">Aucune annonce pour le moment.</div>
+          ) : (
+            <div className="space-y-6">
+              {listings.map((listing) => (
+                <motion.div 
+                  key={listing.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                  onClick={() => setSelectedListing(listing)}
+                >
+                  {/* Vendor Header */}
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-tr from-orange-400 to-pink-500 rounded-full p-[2px]">
+                        <div className="w-full h-full bg-white rounded-full flex items-center justify-center border border-gray-100">
+                          <span className="text-xs font-bold">{listing.vendorName?.charAt(0) || "V"}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm">{listing.vendorName}</h3>
+                        <span className="text-[10px] text-gray-500 font-medium">Vendeur vérifié</span>
+                      </div>
+                    </div>
+                    {listing.vendorBadge === 'GOLD' && (
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[10px] font-bold rounded-md">
+                        GOLD
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Image */}
+                  <div className="aspect-[4/5] bg-gray-100 relative">
+                    <img 
+                      src={listing.image} 
+                      alt={listing.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-lg leading-tight">{listing.title}</h3>
+                      <span className="font-black text-orange-600 text-lg whitespace-nowrap ml-2">
+                        {Number(listing.price).toLocaleString('fr-FR')} {listing.currency}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 text-sm line-clamp-2">
+                      {listing.description}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {selectedListing && (
+          <ProductDetailView 
+            listing={selectedListing} 
+            onBack={() => setSelectedListing(null)} 
+          />
+        )}
+      </AnimatePresence>
+    </>
+  );
+}

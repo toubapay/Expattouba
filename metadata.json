@@ -1,0 +1,12 @@
+{
+  "name": "SeneMarket",
+  "description": "A lightweight, mobile-first multi-vendor hyper-local marketplace prototype.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
