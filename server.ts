@@ -15,6 +15,7 @@ import { chatRouter } from './src/routes/chat.ts';
 import { walletRouter } from './src/routes/wallet.ts';
 import { vendorPlansRouter } from './src/routes/vendorPlans.ts';
 import { paymentsRouter } from './src/routes/payments.ts';
+import { ensureSchema } from './src/db/ensureSchema.ts';
 import { seedCategories, listActiveCategories } from './src/db/categories.ts';
 import { seedVendorPlans } from './src/db/vendorPlans.ts';
 import { getHomeFeed, createListingForVendor, ListingLimitError } from './src/db/listings.ts';
@@ -42,24 +43,18 @@ async function startServer() {
   app.use('/api/v1/vendors/plans', vendorPlansRouter);
   app.use('/api/payments', paymentsRouter);
 
-  // Seeded once, on an empty table — an admin's edits afterwards are never
-  // touched again, same pattern as the sister app's seedServices().
-  //
-  // Caught rather than left to crash the boot: on a fresh database before
-  // `npm run db:push` has been run (the schema here isn't auto-synced on
-  // boot — see render.yaml), these tables don't exist yet, and this used
-  // to take the whole process down as an unhandled rejection before the
-  // health check could even come up. A missing table now just logs a
-  // loud warning — every DB-backed route still 500s honestly until
-  // db:push runs, but the process itself stays up.
+  // Schema sync runs on every boot — see ensureSchema.ts for why this
+  // replaced `npm run db:push` as a required manual step. Seeding is
+  // still caught separately: schema sync succeeding doesn't guarantee
+  // the categories/plans seed queries can't fail for some unrelated
+  // reason, and either way a seeding problem shouldn't crash the process
+  // before the health check can come up.
   try {
+    await ensureSchema();
     await seedCategories();
     await seedVendorPlans();
   } catch (error) {
-    console.error(
-      'Startup seeding failed — has `npm run db:push` been run against this database yet?',
-      error
-    );
+    console.error('Startup schema sync or seeding failed:', error);
   }
 
   // API Routes

@@ -1,10 +1,9 @@
 databases:
   # Users, vendors, listings, vendor plans/subscriptions, categories,
-  # settings, and chat — see src/db/schema.ts, drizzle-kit owns the actual
-  # tables (there is no ensureSchema()-on-boot here, unlike the sister
-  # app — run `npm run db:push` once against this database's external
-  # connection string after the first deploy, and again after any future
-  # schema.ts change).
+  # settings, and chat — see src/db/schema.ts. The actual tables are kept
+  # in sync by src/db/ensureSchema.ts, which runs on every boot (same
+  # pattern as the sister app's ensureSchema()) — no manual migration step
+  # needed after the first deploy or after a future schema.ts change.
   - name: expattouba-db
     plan: free
     region: frankfurt
