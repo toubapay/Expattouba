@@ -6,6 +6,10 @@ export interface AppSettings {
   // Applies to a vendor plan whose commissionPercent/feeFcfa is NULL.
   defaultCommissionPercent: number;
   defaultFeeFcfa: number;
+  // This is a classifieds app first — buyers are expected to close the
+  // deal over WhatsApp/phone. In-app wallet purchase is an optional extra
+  // some deployments may not want at all, so it's a switch, not a given.
+  walletPurchaseEnabled: boolean;
   home: {
     featuredTitle: string;
     newArrivalsTitle: string;
@@ -16,6 +20,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultCommissionPercent: 5,
   defaultFeeFcfa: 0,
+  walletPurchaseEnabled: true,
   home: {
     featuredTitle: 'En vedette',
     newArrivalsTitle: 'Nouveautés',

@@ -10,9 +10,13 @@ interface ProductDetailProps {
   // Lets the caller refresh its feed once this listing is actually sold,
   // so it doesn't keep showing a listing that's gone.
   onPurchased?: () => void;
+  // Admin-configurable (Paramètres > Achat en application). This is a
+  // classifieds app first — Appeler/WhatsApp/Discuter are never gated by
+  // this — in-app wallet checkout is the optional extra.
+  walletPurchaseEnabled: boolean;
 }
 
-export function ProductDetailView({ listing, onBack, onPurchased }: ProductDetailProps) {
+export function ProductDetailView({ listing, onBack, onPurchased, walletPurchaseEnabled }: ProductDetailProps) {
   const { user, getToken, refreshUser } = useAuth();
   const [chatThreadId, setChatThreadId] = useState<string | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
@@ -196,13 +200,15 @@ export function ProductDetailView({ listing, onBack, onPurchased }: ProductDetai
 
       {/* Sticky Bottom Actions */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex space-x-3 pb-safe z-10">
-        <button
-          onClick={buy}
-          disabled={buying}
-          className="flex-1 bg-orange-600 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-orange-200 disabled:opacity-60"
-        >
-          {buying ? "..." : "Acheter (Wallet)"}
-        </button>
+        {walletPurchaseEnabled && (
+          <button
+            onClick={buy}
+            disabled={buying}
+            className="flex-1 bg-orange-600 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-orange-200 disabled:opacity-60"
+          >
+            {buying ? "..." : "Acheter (Wallet)"}
+          </button>
+        )}
         <button
           onClick={openChat}
           disabled={openingChat}

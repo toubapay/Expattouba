@@ -4,6 +4,7 @@ import { useAdminApi } from "./adminApi";
 interface AppSettings {
   defaultCommissionPercent: number;
   defaultFeeFcfa: number;
+  walletPurchaseEnabled: boolean;
   home: {
     featuredTitle: string;
     newArrivalsTitle: string;
@@ -69,6 +70,23 @@ export function AdminSettingsPage() {
               />
             </label>
           </div>
+        </section>
+
+        <section className="bg-white p-5 rounded-2xl border border-gray-100">
+          <h2 className="font-bold text-gray-900 mb-4">Achat en application</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            L'app reste une petite-annonce classique : Appeler/WhatsApp/Discuter restent toujours proposés.
+            Ce réglage ajoute (ou retire) un bouton "Acheter (Wallet)" pour payer directement dans l'app.
+          </p>
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={settings.walletPurchaseEnabled}
+              onChange={(e) => setSettings({ ...settings, walletPurchaseEnabled: e.target.checked })}
+              className="w-4 h-4"
+            />
+            <span className="text-sm font-bold text-gray-700">Activer l'achat via portefeuille</span>
+          </label>
         </section>
 
         <section className="bg-white p-5 rounded-2xl border border-gray-100">

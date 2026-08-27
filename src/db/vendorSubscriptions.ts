@@ -48,13 +48,20 @@ export async function listAllSubscriptions() {
 
 /** Assigns a plan starting now, priced at the plan's *current* price —
  * snapshotted onto the row so a later price change can't rewrite what this
- * vendor actually paid. */
-export async function assignPlan(vendorId: string, planId: string) {
-  const plan = (await db.select().from(vendorPlans).where(eq(vendorPlans.id, planId)).limit(1))[0];
+ * vendor actually paid.
+ *
+ * Takes an optional executor so a caller that already opened its own
+ * db.transaction() (see planOrders.ts's completeOrderAndActivate) can pass
+ * its `tx` through and get this insert in the *same* transaction, instead
+ * of this function opening a second, independent one. */
+type Executor = Pick<typeof db, 'select' | 'insert'>;
+
+export async function assignPlan(vendorId: string, planId: string, executor: Executor = db) {
+  const plan = (await executor.select().from(vendorPlans).where(eq(vendorPlans.id, planId)).limit(1))[0];
   if (!plan) throw new Error('Plan not found');
 
   const expiresAt = new Date(Date.now() + plan.durationDays * 24 * 60 * 60 * 1000);
-  const result = await db
+  const result = await executor
     .insert(vendorSubscriptions)
     .values({
       vendorId,

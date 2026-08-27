@@ -13,6 +13,8 @@ import { checkRateLimit } from './src/lib/rateLimit.ts';
 import { adminRouter } from './src/routes/admin.ts';
 import { chatRouter } from './src/routes/chat.ts';
 import { walletRouter } from './src/routes/wallet.ts';
+import { vendorPlansRouter } from './src/routes/vendorPlans.ts';
+import { paymentsRouter } from './src/routes/payments.ts';
 import { seedCategories, listActiveCategories } from './src/db/categories.ts';
 import { seedVendorPlans } from './src/db/vendorPlans.ts';
 import { getHomeFeed, createListingForVendor, ListingLimitError } from './src/db/listings.ts';
@@ -30,6 +32,8 @@ async function startServer() {
   app.use('/api/admin', adminRouter);
   app.use('/api/v1/chat', chatRouter);
   app.use('/api/v1/wallet', walletRouter);
+  app.use('/api/v1/vendors/plans', vendorPlansRouter);
+  app.use('/api/payments', paymentsRouter);
 
   // Seeded once, on an empty table — an admin's edits afterwards are never
   // touched again, same pattern as the sister app's seedServices().
@@ -119,12 +123,12 @@ async function startServer() {
     try {
       const category = typeof req.query.category === "string" ? req.query.category : undefined;
       const feed = await getHomeFeed(category);
-      // Only the home-page display settings go out here — commission/fee
-      // defaults are margin, not something an unauthenticated endpoint
-      // should ever publish (same reasoning as the sister app's
-      // publicService()).
-      const { home } = await getSettings();
-      res.json({ ...feed, home });
+      // Only the home-page display settings and the wallet-purchase switch
+      // go out here — commission/fee defaults are margin, not something an
+      // unauthenticated endpoint should ever publish (same reasoning as
+      // the sister app's publicService()).
+      const { home, walletPurchaseEnabled } = await getSettings();
+      res.json({ ...feed, home, walletPurchaseEnabled });
     } catch (error) {
       console.error("Fetch home feed error:", error);
       res.status(500).json({ error: "Failed to fetch home feed" });

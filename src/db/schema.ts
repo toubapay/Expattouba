@@ -113,6 +113,24 @@ export const vendorSubscriptions = pgTable('vendor_subscriptions', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// A vendor's Paydunya checkout attempt for a plan. Exists *before* the
+// subscription does — a vendor can abandon or fail a payment, and only a
+// PENDING row (never a subscription) should exist for that. The row is
+// what completeOrderAndActivate() claims atomically (status
+// PENDING -> COMPLETED) before creating the real vendorSubscriptions row,
+// so a duplicated IPN delivery or a race between the IPN and the
+// return-url sync can't activate the same payment twice.
+export const planOrders = pgTable('plan_orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id').references(() => vendors.id, { onDelete: 'cascade' }).notNull(),
+  planId: uuid('plan_id').references(() => vendorPlans.id).notNull(),
+  invoiceToken: text('invoice_token').notNull().unique(),
+  amountFcfa: integer('amount_fcfa').notNull(),
+  status: text('status').default('PENDING'), // PENDING, COMPLETED, FAILED, CANCELLED
+  createdAt: timestamp('created_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+});
+
 // One thread per (listing, buyer) pair, so a buyer's messages about two
 // different listings from the same vendor don't merge into one
 // conversation the vendor can't tell apart.
@@ -172,6 +190,17 @@ export const vendorSubscriptionsRelations = relations(vendorSubscriptions, ({ on
   }),
   plan: one(vendorPlans, {
     fields: [vendorSubscriptions.planId],
+    references: [vendorPlans.id],
+  }),
+}));
+
+export const planOrdersRelations = relations(planOrders, ({ one }) => ({
+  vendor: one(vendors, {
+    fields: [planOrders.vendorId],
+    references: [vendors.id],
+  }),
+  plan: one(vendorPlans, {
+    fields: [planOrders.planId],
     references: [vendorPlans.id],
   }),
 }));

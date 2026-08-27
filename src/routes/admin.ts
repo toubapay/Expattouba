@@ -166,6 +166,9 @@ adminRouter.patch('/settings', async (req, res) => {
     if (body.defaultFeeFcfa !== undefined) {
       await setSetting('defaultFeeFcfa', Number(body.defaultFeeFcfa));
     }
+    if (body.walletPurchaseEnabled !== undefined) {
+      await setSetting('walletPurchaseEnabled', !!body.walletPurchaseEnabled);
+    }
     if (body.home !== undefined) {
       const current = await getSettings();
       await setSetting('home', { ...current.home, ...body.home });

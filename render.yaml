@@ -47,3 +47,15 @@ services:
       # boots.
       - key: GEMINI_API_KEY
         sync: false
+      # Vendor plan checkout (src/lib/paydunya.ts). All four optional —
+      # without them, "Payer avec Paydunya" honestly reports itself
+      # unavailable instead of failing every attempt; an admin can still
+      # assign a plan manually regardless.
+      - key: PAYDUNYA_MASTER_KEY
+        sync: false
+      - key: PAYDUNYA_PRIVATE_KEY
+        sync: false
+      - key: PAYDUNYA_PUBLIC_KEY
+        sync: false
+      - key: PAYDUNYA_TOKEN
+        sync: false

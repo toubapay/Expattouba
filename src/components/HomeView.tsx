@@ -13,6 +13,7 @@ interface HomeFeed {
   featured: any[];
   listings: any[];
   home: { featuredTitle: string; newArrivalsTitle: string; featuredEnabled: boolean };
+  walletPurchaseEnabled: boolean;
 }
 
 export function HomeView() {
@@ -217,6 +218,7 @@ export function HomeView() {
             listing={selectedListing}
             onBack={() => setSelectedListing(null)}
             onPurchased={() => fetchHome(activeCategory)}
+            walletPurchaseEnabled={feed?.walletPurchaseEnabled ?? true}
           />
         )}
       </AnimatePresence>
