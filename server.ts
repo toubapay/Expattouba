@@ -28,6 +28,13 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Render (and most PaaS hosts) terminate TLS at the edge and forward
+  // over plain HTTP internally — without this, req.protocol always reads
+  // "http" even for an external https:// request, which would build
+  // http:// Paydunya callback/return URLs (src/routes/vendorPlans.ts's
+  // APP_URL fallback) on a site that's only ever served over https.
+  app.set('trust proxy', 1);
+
   app.use(express.json());
   app.use('/api/admin', adminRouter);
   app.use('/api/v1/chat', chatRouter);
@@ -37,8 +44,23 @@ async function startServer() {
 
   // Seeded once, on an empty table — an admin's edits afterwards are never
   // touched again, same pattern as the sister app's seedServices().
-  await seedCategories();
-  await seedVendorPlans();
+  //
+  // Caught rather than left to crash the boot: on a fresh database before
+  // `npm run db:push` has been run (the schema here isn't auto-synced on
+  // boot — see render.yaml), these tables don't exist yet, and this used
+  // to take the whole process down as an unhandled rejection before the
+  // health check could even come up. A missing table now just logs a
+  // loud warning — every DB-backed route still 500s honestly until
+  // db:push runs, but the process itself stays up.
+  try {
+    await seedCategories();
+    await seedVendorPlans();
+  } catch (error) {
+    console.error(
+      'Startup seeding failed — has `npm run db:push` been run against this database yet?',
+      error
+    );
+  }
 
   // API Routes
   app.get("/api/health", (req, res) => {
@@ -259,4 +281,7 @@ Keep it short, engaging, and suitable for mobile (Instagram/Snapchat style). Inc
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error('Fatal error during startup:', error);
+  process.exit(1);
+});

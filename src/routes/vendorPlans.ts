@@ -11,7 +11,12 @@ export const vendorPlansRouter = Router();
 vendorPlansRouter.use(requireAuth);
 
 function appUrl(req: AuthRequest): string {
-  const configured = process.env.APP_URL;
+  // APP_URL (AI Studio) or RENDER_EXTERNAL_URL (auto-injected by Render on
+  // every web service, no render.yaml entry needed) beat deriving it from
+  // the request — req.protocol only reflects the real external scheme
+  // when 'trust proxy' is set (see server.ts) and the platform forwards
+  // X-Forwarded-Proto, which not every host does.
+  const configured = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
   const base = configured || `${req.protocol}://${req.get('host')}`;
   return base.replace(/\/$/, '');
 }
