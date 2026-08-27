@@ -13,6 +13,7 @@ import {
 } from '../db/categories.ts';
 import { listPlans, getPlan, createPlan, updatePlan, deactivatePlan, PlanInput } from '../db/vendorPlans.ts';
 import { listAllSubscriptions, assignPlan, cancelSubscription } from '../db/vendorSubscriptions.ts';
+import { adjustWalletForUser, InsufficientFundsError } from '../db/wallet.ts';
 
 export const adminRouter = Router();
 
@@ -120,6 +121,28 @@ adminRouter.patch('/users/:id', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Admin update user error:', error);
     res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Manual credit/debit — the only way real money enters or leaves a wallet
+// here, same reasoning as the sister app: there's no payment gateway
+// wired up, so pretending "Recharger" works in the customer app would be
+// fabricating something that looks real but isn't.
+adminRouter.post('/users/:id/wallet-adjust', async (req, res) => {
+  try {
+    const amount = Number(req.body.amount);
+    const note = String(req.body.note || '').trim() || 'Ajustement admin';
+    if (!Number.isFinite(amount) || amount === 0) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+    const updated = await adjustWalletForUser(req.params.id, Math.round(amount), note);
+    res.json(updated);
+  } catch (error: any) {
+    if (error instanceof InsufficientFundsError) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error('Admin wallet adjust error:', error);
+    res.status(500).json({ error: 'Failed to adjust wallet' });
   }
 });
 

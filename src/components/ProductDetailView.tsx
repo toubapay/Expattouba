@@ -7,12 +7,54 @@ import { ChatPanel } from "./ChatPanel";
 interface ProductDetailProps {
   listing: any;
   onBack: () => void;
+  // Lets the caller refresh its feed once this listing is actually sold,
+  // so it doesn't keep showing a listing that's gone.
+  onPurchased?: () => void;
 }
 
-export function ProductDetailView({ listing, onBack }: ProductDetailProps) {
-  const { user, getToken } = useAuth();
+export function ProductDetailView({ listing, onBack, onPurchased }: ProductDetailProps) {
+  const { user, getToken, refreshUser } = useAuth();
   const [chatThreadId, setChatThreadId] = useState<string | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
+  const [buying, setBuying] = useState(false);
+
+  const authedFetch = async (path: string, init?: RequestInit) => {
+    const token = await getToken();
+    return fetch(path, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  };
+
+  const buy = async () => {
+    if (!user) {
+      alert("Connectez-vous pour acheter cette annonce.");
+      return;
+    }
+    if (!confirm(`Acheter "${listing.title}" pour ${Number(listing.price).toLocaleString('fr-FR')} ${listing.currency} via votre portefeuille ?`)) {
+      return;
+    }
+    setBuying(true);
+    try {
+      const res = await authedFetch("/api/v1/wallet/purchase", {
+        method: "POST",
+        body: JSON.stringify({ listingId: listing.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Achat impossible");
+      await refreshUser();
+      onPurchased?.();
+      alert("Achat effectué avec succès !");
+      onBack();
+    } catch (e: any) {
+      alert(e.message || "Erreur réseau");
+    } finally {
+      setBuying(false);
+    }
+  };
 
   const openChat = async () => {
     if (!user) {
@@ -21,13 +63,8 @@ export function ProductDetailView({ listing, onBack }: ProductDetailProps) {
     }
     setOpeningChat(true);
     try {
-      const token = await getToken();
-      const res = await fetch("/api/v1/chat/threads", {
+      const res = await authedFetch("/api/v1/chat/threads", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({ listingId: listing.id }),
       });
       const data = await res.json();
@@ -155,8 +192,12 @@ export function ProductDetailView({ listing, onBack }: ProductDetailProps) {
 
       {/* Sticky Bottom Actions */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex space-x-3 pb-safe z-10">
-        <button className="flex-1 bg-orange-600 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-orange-200">
-          Acheter (Wallet)
+        <button
+          onClick={buy}
+          disabled={buying}
+          className="flex-1 bg-orange-600 text-white py-4 rounded-xl font-bold text-[15px] shadow-lg shadow-orange-200 disabled:opacity-60"
+        >
+          {buying ? "..." : "Acheter (Wallet)"}
         </button>
         <button
           onClick={openChat}

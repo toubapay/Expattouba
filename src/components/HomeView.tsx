@@ -204,7 +204,13 @@ export function HomeView() {
       </div>
 
       <AnimatePresence>
-        {selectedListing && <ProductDetailView listing={selectedListing} onBack={() => setSelectedListing(null)} />}
+        {selectedListing && (
+          <ProductDetailView
+            listing={selectedListing}
+            onBack={() => setSelectedListing(null)}
+            onPurchased={() => fetchHome(activeCategory)}
+          />
+        )}
       </AnimatePresence>
     </>
   );

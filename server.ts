@@ -12,6 +12,7 @@ import { JWT_SECRET } from './src/lib/jwt.ts';
 import { checkRateLimit } from './src/lib/rateLimit.ts';
 import { adminRouter } from './src/routes/admin.ts';
 import { chatRouter } from './src/routes/chat.ts';
+import { walletRouter } from './src/routes/wallet.ts';
 import { seedCategories, listActiveCategories } from './src/db/categories.ts';
 import { seedVendorPlans } from './src/db/vendorPlans.ts';
 import { getHomeFeed, createListingForVendor, ListingLimitError } from './src/db/listings.ts';
@@ -28,6 +29,7 @@ async function startServer() {
   app.use(express.json());
   app.use('/api/admin', adminRouter);
   app.use('/api/v1/chat', chatRouter);
+  app.use('/api/v1/wallet', walletRouter);
 
   // Seeded once, on an empty table — an admin's edits afterwards are never
   // touched again, same pattern as the sister app's seedServices().

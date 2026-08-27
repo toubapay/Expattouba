@@ -47,6 +47,13 @@ export const transactions = pgTable('transactions', {
   type: text('type'), // DEPOSIT, WITHDRAWAL, PAYMENT, TRANSFER
   status: text('status'), // PENDING, COMPLETED, FAILED
   gateway: text('gateway'), // WAVE, ORANGE_MONEY, MANUAL
+  // Which listing this was for, when it's one side of a sale — nullable
+  // because a manual admin adjustment isn't about any listing.
+  listingId: uuid('listing_id').references(() => listings.id),
+  // Short human label ("Achat : Chaise", "Ajustement admin") — the history
+  // view has nothing else to show a customer beyond amount and date
+  // without this.
+  note: text('note'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

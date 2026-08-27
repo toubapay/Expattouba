@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, ShieldCheck, ShieldOff, BadgeCheck } from "lucide-react";
+import { Search, ShieldCheck, ShieldOff, BadgeCheck, Wallet } from "lucide-react";
 import { useAdminApi } from "./adminApi";
 
 interface UserRow {
@@ -60,6 +60,28 @@ export function AdminUsersPage() {
     }
   };
 
+  const adjustWallet = async (row: UserRow) => {
+    const input = prompt(
+      `Ajuster le solde de ${row.phoneNumber || row.email} (solde actuel : ${Number(row.walletBalance).toLocaleString("fr-FR")} FCFA).\n\nMontant en FCFA (négatif pour un retrait) :`
+    );
+    if (input === null) return;
+    const amount = Number(input);
+    if (!Number.isFinite(amount) || amount === 0) {
+      alert("Montant invalide.");
+      return;
+    }
+    const note = prompt("Note (optionnel) :") || undefined;
+    setBusyId(row.id);
+    try {
+      await api.post(`/users/${row.id}/wallet-adjust`, { amount, note });
+      load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div>
       <h1 className="text-2xl font-black text-gray-900 mb-6">Utilisateurs</h1>
@@ -101,7 +123,17 @@ export function AdminUsersPage() {
                     <span className="text-gray-400">—</span>
                   )}
                 </td>
-                <td className="p-3 font-bold">{Number(u.walletBalance).toLocaleString("fr-FR")} FCFA</td>
+                <td className="p-3">
+                  <button
+                    disabled={busyId === u.id}
+                    onClick={() => adjustWallet(u)}
+                    className="flex items-center space-x-1 font-bold hover:text-orange-600"
+                    title="Ajuster le solde"
+                  >
+                    <span>{Number(u.walletBalance).toLocaleString("fr-FR")} FCFA</span>
+                    <Wallet className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                </td>
                 <td className="p-3">
                   <button
                     disabled={busyId === u.id}
