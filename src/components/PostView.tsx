@@ -132,11 +132,11 @@ export function PostView() {
   return (
     <>
       <div className="min-h-full bg-gray-50 relative">
-        <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-40 border-b border-gray-100">
-          <h1 className="text-xl font-bold text-center">Nouvelle Annonce</h1>
+        <div className="bg-white px-4 md:px-0 pt-12 md:pt-8 pb-4 sticky top-0 z-40 border-b border-gray-100">
+          <h1 className="text-xl font-bold text-center max-w-xl mx-auto">Nouvelle Annonce</h1>
         </div>
 
-        <div className="p-4 space-y-6">
+        <div className="p-4 md:px-0 max-w-xl mx-auto space-y-6">
           {/* Photo Upload Area - Instagram Style */}
           <div 
             className="aspect-square bg-white rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden"

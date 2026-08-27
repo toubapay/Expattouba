@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { BottomNav } from "./components/BottomNav";
+import { TopNav } from "./components/TopNav";
 import { HomeView } from "./components/HomeView";
 import { PostView } from "./components/PostView";
 import { WalletView } from "./components/WalletView";
@@ -12,8 +13,7 @@ import { ProfileView } from "./components/ProfileView";
 import { useAuth } from "./components/AuthContext";
 import { VendorOnboarding } from "./components/VendorOnboarding";
 import { AuthView } from "./components/AuthView";
-
-type Tab = "home" | "post" | "wallet" | "profile";
+import type { Tab } from "./lib/navTabs";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
@@ -33,27 +33,38 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-0 md:p-4">
-      <div className="w-full h-full md:h-[844px] md:w-[390px] md:rounded-[40px] md:shadow-2xl overflow-hidden bg-white relative flex flex-col">
-        {showAuth && !user ? (
-          <AuthView onClose={() => setShowAuth(false)} />
-        ) : dbUser && !dbUser.vendor && activeTab === 'post' ? (
-          <>
+    // No fixed phone-frame box: full width/height at any viewport. Below
+    // md this fills a phone screen edge to edge (unchanged from before);
+    // at md and up, TopNav takes over from BottomNav and every screen's
+    // own max-width container (see each view) keeps content from
+    // stretching edge to edge on a wide monitor.
+    <div className="min-h-screen bg-white flex flex-col">
+      {showAuth && !user ? (
+        <div className="flex-1 flex md:items-center md:justify-center md:bg-gray-50 md:p-6">
+          <div className="w-full h-full md:h-auto md:max-w-md bg-white md:rounded-2xl md:shadow-sm md:border md:border-gray-100 overflow-hidden flex flex-col">
+            <AuthView onClose={() => setShowAuth(false)} />
+          </div>
+        </div>
+      ) : dbUser && !dbUser.vendor && activeTab === 'post' ? (
+        <>
+          <TopNav activeTab={activeTab} onTabChange={handleTabChange} />
+          <main className="flex-1 overflow-y-auto scrollbar-hide">
             <VendorOnboarding />
-            <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
-          </>
-        ) : (
-          <>
-            <main className="flex-1 overflow-y-auto scrollbar-hide">
-              {activeTab === "home" && <HomeView />}
-              {activeTab === "post" && <PostView />}
-              {activeTab === "wallet" && <WalletView />}
-              {activeTab === "profile" && <ProfileView />}
-            </main>
-            <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
-          </>
-        )}
-      </div>
+          </main>
+          <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+        </>
+      ) : (
+        <>
+          <TopNav activeTab={activeTab} onTabChange={handleTabChange} />
+          <main className="flex-1 overflow-y-auto scrollbar-hide">
+            {activeTab === "home" && <HomeView />}
+            {activeTab === "post" && <PostView />}
+            {activeTab === "wallet" && <WalletView />}
+            {activeTab === "profile" && <ProfileView />}
+          </main>
+          <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+        </>
+      )}
     </div>
   );
 }
@@ -61,4 +72,3 @@ function AppContent() {
 export default function App() {
   return <AppContent />;
 }
-

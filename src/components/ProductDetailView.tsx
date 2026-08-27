@@ -78,13 +78,17 @@ export function ProductDetailView({ listing, onBack, onPurchased }: ProductDetai
   };
 
   return (
-    <motion.div 
-      initial={{ x: "100%" }}
-      animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed inset-0 z-[60] bg-white flex flex-col md:absolute"
-    >
+    // On desktop this is a centered card over a dimmed backdrop; below md
+    // (where there's no room for a backdrop-and-card look) it's the same
+    // edge-to-edge full-screen sheet as before, sliding in from the right.
+    <div className="fixed inset-0 z-[60] flex md:items-center md:justify-center md:bg-black/50 md:p-6">
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className="relative bg-white flex flex-col w-full h-full md:h-[85vh] md:max-w-2xl md:rounded-3xl overflow-hidden md:shadow-2xl"
+      >
       {/* Top Header Buttons */}
       <div className="absolute top-4 left-4 right-4 flex justify-between z-10">
         <button onClick={onBack} className="p-2 bg-white/80 backdrop-blur rounded-full shadow-sm">
@@ -214,6 +218,7 @@ export function ProductDetailView({ listing, onBack, onPurchased }: ProductDetai
           <ChatPanel threadId={chatThreadId} vendorName={listing.vendorName} onClose={() => setChatThreadId(null)} />
         )}
       </AnimatePresence>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }

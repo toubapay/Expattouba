@@ -12,9 +12,10 @@ export function ProfileView() {
 
   return (
     <div className="min-h-full bg-gray-50">
-      <div className="bg-white px-4 pt-12 pb-6 border-b border-gray-100">
+      <div className="bg-white px-4 md:px-0 pt-12 md:pt-10 pb-6 border-b border-gray-100">
+        <div className="max-w-2xl mx-auto">
         <h1 className="text-xl font-bold text-center mb-6">Mon Profil</h1>
-        
+
         <div className="flex items-center space-x-4">
           <div className="w-20 h-20 bg-gradient-to-tr from-orange-400 to-pink-500 rounded-full p-[3px]">
             <div className="w-full h-full bg-white rounded-full flex items-center justify-center border-2 border-white overflow-hidden">
@@ -36,9 +37,10 @@ export function ProfileView() {
             )}
           </div>
         </div>
+        </div>
       </div>
 
-      <div className="p-4 space-y-6 mt-2">
+      <div className="p-4 md:px-0 md:max-w-2xl md:mx-auto space-y-6 mt-2">
         {dbUser?.vendor && (
           <div>
             <h3 className="text-xs font-bold text-gray-400 uppercase ml-2 mb-2">Boutique</h3>

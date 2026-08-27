@@ -50,7 +50,8 @@ export function WalletView() {
 
   return (
     <div className="min-h-full bg-gray-50">
-      <div className="bg-orange-600 px-4 pt-12 pb-8 rounded-b-3xl text-white">
+      <div className="bg-orange-600 px-4 md:px-0 pt-12 md:pt-10 pb-8 rounded-b-3xl text-white">
+        <div className="max-w-2xl mx-auto">
         <h1 className="text-center font-medium mb-6">Mon Portefeuille</h1>
 
         <div className="text-center mb-8">
@@ -71,9 +72,10 @@ export function WalletView() {
             <span>Retirer</span>
           </button>
         </div>
+        </div>
       </div>
 
-      <div className="p-4 mt-4">
+      <div className="p-4 md:px-0 md:max-w-2xl md:mx-auto mt-4">
         <h2 className="text-lg font-bold mb-4">Méthodes de Paiement</h2>
         <div className="grid grid-cols-2 gap-4 mb-8">
           <button onClick={notYetAvailable} className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center space-y-2 hover:border-blue-500 hover:ring-1 ring-blue-500 transition-all">

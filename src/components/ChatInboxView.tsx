@@ -39,14 +39,15 @@ export function ChatInboxView({ onBack }: ChatInboxViewProps) {
   }, []);
 
   return (
-    <motion.div
-      initial={{ x: "100%" }}
-      animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed inset-0 z-[60] bg-white flex flex-col md:absolute"
-    >
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100 flex items-center space-x-3">
+    <div className="fixed inset-0 z-[60] flex md:items-center md:justify-center md:bg-black/50 md:p-6">
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className="bg-white flex flex-col w-full h-full md:h-[80vh] md:max-w-lg md:rounded-3xl overflow-hidden md:shadow-2xl"
+      >
+      <div className="px-4 pt-12 md:pt-4 pb-4 border-b border-gray-100 flex items-center space-x-3">
         <button onClick={onBack} className="p-2 bg-gray-50 rounded-full">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -94,6 +95,7 @@ export function ChatInboxView({ onBack }: ChatInboxViewProps) {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }

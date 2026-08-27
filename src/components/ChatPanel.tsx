@@ -107,14 +107,15 @@ export function ChatPanel({ threadId, vendorName, onClose }: ChatPanelProps) {
   };
 
   return (
-    <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={{ type: "spring", damping: 28, stiffness: 260 }}
-      className="fixed inset-0 z-[70] bg-white flex flex-col md:absolute"
-    >
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100 flex items-center justify-between">
+    <div className="fixed inset-0 z-[70] flex md:items-center md:justify-center md:bg-black/50 md:p-6">
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 260 }}
+        className="bg-white flex flex-col w-full h-full md:h-[80vh] md:max-w-lg md:rounded-3xl overflow-hidden md:shadow-2xl"
+      >
+      <div className="px-4 pt-12 md:pt-4 pb-4 border-b border-gray-100 flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-400 font-medium">Discussion avec</p>
           <h2 className="font-bold text-gray-900">{vendorName}</h2>
@@ -172,6 +173,7 @@ export function ChatPanel({ threadId, vendorName, onClose }: ChatPanelProps) {
           <Send className="w-4 h-4" />
         </button>
       </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }

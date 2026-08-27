@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Routes, Route, NavLink, Link } from "react-router-dom";
-import { LayoutDashboard, Users, Tags, Award, Store, Settings, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Users, Tags, Award, Store, Settings, ArrowLeft, Menu, X } from "lucide-react";
 import { useAuth } from "../components/AuthContext";
 import { AuthView } from "../components/AuthView";
 import { AdminDashboardPage } from "./AdminDashboardPage";
@@ -20,6 +21,7 @@ const NAV = [
 
 export function AdminApp() {
   const { user, dbUser, loading } = useAuth();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50">Chargement...</div>;
@@ -48,35 +50,67 @@ export function AdminApp() {
     );
   }
 
+  const navLinks = (onNavigate?: () => void) => (
+    <>
+      <nav className="flex-1 p-3 space-y-1">
+        {NAV.map(({ to, label, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              `flex items-center space-x-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+                isActive ? "bg-orange-50 text-orange-600" : "text-gray-600 hover:bg-gray-50"
+              }`
+            }
+          >
+            <Icon className="w-4 h-4" />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+      <div className="p-3 border-t border-gray-100">
+        <Link to="/" className="flex items-center space-x-2 px-3 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-800">
+          <ArrowLeft className="w-4 h-4" />
+          <span>Retour à l'application</span>
+        </Link>
+      </div>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+      {/* Mobile top bar — the sidebar below is desktop-only (hidden below
+          md), so without this a phone would have no way at all to move
+          between admin pages past the first one it lands on. */}
+      <div className="md:hidden flex items-center justify-between px-4 h-14 bg-white border-b border-gray-100 flex-shrink-0">
+        <h1 className="font-black text-orange-600">SeneMarket Admin</h1>
+        <button onClick={() => setMobileNavOpen(true)} className="p-2 -mr-2 text-gray-700">
+          <Menu className="w-6 h-6" />
+        </button>
+      </div>
+
+      {mobileNavOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileNavOpen(false)} />
+          <div className="relative w-72 max-w-[80%] bg-white h-full flex flex-col">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <h1 className="font-black text-lg text-orange-600">SeneMarket Admin</h1>
+              <button onClick={() => setMobileNavOpen(false)} className="p-1 text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {navLinks(() => setMobileNavOpen(false))}
+          </div>
+        </div>
+      )}
+
       <aside className="w-64 bg-white border-r border-gray-100 flex-shrink-0 hidden md:flex flex-col">
         <div className="p-5 border-b border-gray-100">
           <h1 className="font-black text-lg text-orange-600">SeneMarket Admin</h1>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-colors ${
-                  isActive ? "bg-orange-50 text-orange-600" : "text-gray-600 hover:bg-gray-50"
-                }`
-              }
-            >
-              <Icon className="w-4 h-4" />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-        </nav>
-        <div className="p-3 border-t border-gray-100">
-          <Link to="/" className="flex items-center space-x-2 px-3 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-800">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Retour à l'application</span>
-          </Link>
-        </div>
+        {navLinks()}
       </aside>
 
       <main className="flex-1 overflow-y-auto">

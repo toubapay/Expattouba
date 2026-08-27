@@ -54,31 +54,34 @@ export function HomeView() {
     <>
       <div className="min-h-full">
         {/* Header */}
-        <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-40 border-b border-gray-50">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center space-x-2 text-orange-600">
-              <MapPin className="w-5 h-5" />
-              <span className="font-bold text-lg">Dakar, SN</span>
+        <div className="bg-white px-4 md:px-8 pt-12 md:pt-6 pb-4 sticky top-0 z-40 border-b border-gray-50">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center space-x-2 text-orange-600">
+                <MapPin className="w-5 h-5" />
+                <span className="font-bold text-lg">Dakar, SN</span>
+              </div>
+              <button className="p-2 relative bg-gray-50 rounded-full">
+                <Bell className="w-5 h-5 text-gray-700" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              </button>
             </div>
-            <button className="p-2 relative bg-gray-50 rounded-full">
-              <Bell className="w-5 h-5 text-gray-700" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-          </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher sur SeneMarket..."
-              className="w-full bg-gray-100 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-100 transition-shadow"
-            />
+            {/* Search */}
+            <div className="relative md:max-w-md">
+              <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher sur SeneMarket..."
+                className="w-full bg-gray-100 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-100 transition-shadow"
+              />
+            </div>
           </div>
         </div>
 
         {/* Categories */}
-        <div className="px-4 py-6">
+        <div className="px-4 md:px-8 py-6">
+          <div className="max-w-6xl mx-auto">
           <h2 className="text-lg font-bold mb-4 text-gray-900">Catégories</h2>
           <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
             {categories.map((cat) => (
@@ -100,6 +103,7 @@ export function HomeView() {
               </button>
             ))}
           </div>
+          </div>
         </div>
 
         {loading ? (
@@ -109,7 +113,8 @@ export function HomeView() {
         ) : (
           <>
             {feed?.home.featuredEnabled && (feed?.featured.length ?? 0) > 0 && (
-              <div className="px-4 pb-2">
+              <div className="px-4 md:px-8 pb-2">
+                <div className="max-w-6xl mx-auto">
                 <h2 className="text-lg font-bold mb-4 text-gray-900">{feed!.home.featuredTitle}</h2>
                 <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                   {feed!.featured.map((listing) => (
@@ -133,16 +138,18 @@ export function HomeView() {
                     </button>
                   ))}
                 </div>
+                </div>
               </div>
             )}
 
             {/* Feed */}
-            <div className="px-4 pb-6">
+            <div className="px-4 md:px-8 pb-6">
+              <div className="max-w-6xl mx-auto">
               <h2 className="text-lg font-bold mb-4 text-gray-900">{feed?.home.newArrivalsTitle || "Nouveautés"}</h2>
               {!feed || feed.listings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 font-medium">Aucune annonce pour le moment.</div>
               ) : (
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {feed.listings.map((listing) => (
                     <motion.div
                       key={listing.id}
@@ -198,6 +205,7 @@ export function HomeView() {
                   ))}
                 </div>
               )}
+              </div>
             </div>
           </>
         )}
