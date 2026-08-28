@@ -34,10 +34,11 @@ export function VendorOnboarding() {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-6 bg-white overflow-y-auto">
+    <div className="flex-1 flex flex-col items-center p-6 bg-white overflow-y-auto">
+      <div className="w-full max-w-md">
       <h2 className="text-2xl font-bold text-gray-900 mb-2 mt-8">Créer votre boutique</h2>
       <p className="text-gray-500 mb-8 font-medium">Rejoignez SeneMarket et commencez à vendre.</p>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">Nom de la boutique</label>
@@ -81,6 +82,7 @@ export function VendorOnboarding() {
           {loading ? "Création..." : "Commencer à vendre"}
         </button>
       </form>
+      </div>
     </div>
   );
 }

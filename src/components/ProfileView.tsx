@@ -1,16 +1,23 @@
-import { Settings, Shield, Award, ChevronRight, LogOut } from "lucide-react";
+import { useState } from "react";
+import { AnimatePresence } from "motion/react";
+import { Settings, Shield, Award, ChevronRight, LogOut, MessageCircle } from "lucide-react";
 import { useAuth } from "./AuthContext";
+import { ChatInboxView } from "./ChatInboxView";
+import { VendorPlansView } from "./VendorPlansView";
 
 export function ProfileView() {
   const { user, dbUser, logOut } = useAuth();
+  const [showMessages, setShowMessages] = useState(false);
+  const [showPlans, setShowPlans] = useState(false);
 
   const initials = dbUser?.vendor?.boutiqueName?.substring(0, 2).toUpperCase() || "US";
 
   return (
     <div className="min-h-full bg-gray-50">
-      <div className="bg-white px-4 pt-12 pb-6 border-b border-gray-100">
+      <div className="bg-white px-4 md:px-0 pt-12 md:pt-10 pb-6 border-b border-gray-100">
+        <div className="max-w-2xl mx-auto">
         <h1 className="text-xl font-bold text-center mb-6">Mon Profil</h1>
-        
+
         <div className="flex items-center space-x-4">
           <div className="w-20 h-20 bg-gradient-to-tr from-orange-400 to-pink-500 rounded-full p-[3px]">
             <div className="w-full h-full bg-white rounded-full flex items-center justify-center border-2 border-white overflow-hidden">
@@ -32,9 +39,10 @@ export function ProfileView() {
             )}
           </div>
         </div>
+        </div>
       </div>
 
-      <div className="p-4 space-y-6 mt-2">
+      <div className="p-4 md:px-0 md:max-w-2xl md:mx-auto space-y-6 mt-2">
         {dbUser?.vendor && (
           <div>
             <h3 className="text-xs font-bold text-gray-400 uppercase ml-2 mb-2">Boutique</h3>
@@ -53,12 +61,35 @@ export function ProfileView() {
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </div>
               </button>
-              <button className="w-full flex items-center justify-between p-4 active:bg-gray-50">
+              <button
+                onClick={() => setShowPlans(true)}
+                className="w-full flex items-center justify-between p-4 active:bg-gray-50"
+              >
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
                     <Award className="w-4 h-4" />
                   </div>
-                  <span className="font-bold text-sm text-gray-700">Abonnement Premium</span>
+                  <span className="font-bold text-sm text-gray-700">Offres & abonnement</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {user && (
+          <div>
+            <h3 className="text-xs font-bold text-gray-400 uppercase ml-2 mb-2">Messages</h3>
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <button
+                onClick={() => setShowMessages(true)}
+                className="w-full flex items-center justify-between p-4 active:bg-gray-50"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4" />
+                  </div>
+                  <span className="font-bold text-sm text-gray-700">Mes messages</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </button>
@@ -78,7 +109,7 @@ export function ProfileView() {
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
-            <button 
+            <button
               onClick={logOut}
               className="w-full flex items-center justify-between p-4 active:bg-gray-50"
             >
@@ -92,6 +123,11 @@ export function ProfileView() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showMessages && <ChatInboxView onBack={() => setShowMessages(false)} />}
+        {showPlans && <VendorPlansView onBack={() => setShowPlans(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

@@ -6,18 +6,56 @@ import multer from "multer";
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { getOrCreateUser, getUserWithVendor, getOrCreatePhoneUser } from './src/db/users.ts';
 import { db } from './src/db/index.ts';
-import { vendors, listings } from './src/db/schema.ts';
-import { eq, desc } from 'drizzle-orm';
+import { vendors } from './src/db/schema.ts';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from './src/lib/jwt.ts';
+import { checkRateLimit } from './src/lib/rateLimit.ts';
+import { adminRouter } from './src/routes/admin.ts';
+import { chatRouter } from './src/routes/chat.ts';
+import { walletRouter } from './src/routes/wallet.ts';
+import { vendorPlansRouter } from './src/routes/vendorPlans.ts';
+import { paymentsRouter } from './src/routes/payments.ts';
+import { ensureSchema } from './src/db/ensureSchema.ts';
+import { seedCategories, listActiveCategories } from './src/db/categories.ts';
+import { seedVendorPlans } from './src/db/vendorPlans.ts';
+import { getHomeFeed, createListingForVendor, ListingLimitError } from './src/db/listings.ts';
+import { getSettings } from './src/db/settings.ts';
 
-const upload = multer({ storage: multer.memoryStorage() });
+// 5 MB cap: these routes buffer the whole upload into process memory
+// (memoryStorage), so an unbounded size is a trivial memory-exhaustion DoS.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
-  const JWT_SECRET = process.env.JWT_SECRET || 'secret-senemarket-key-2026';
+
+  // Render (and most PaaS hosts) terminate TLS at the edge and forward
+  // over plain HTTP internally — without this, req.protocol always reads
+  // "http" even for an external https:// request, which would build
+  // http:// Paydunya callback/return URLs (src/routes/vendorPlans.ts's
+  // APP_URL fallback) on a site that's only ever served over https.
+  app.set('trust proxy', 1);
 
   app.use(express.json());
+  app.use('/api/admin', adminRouter);
+  app.use('/api/v1/chat', chatRouter);
+  app.use('/api/v1/wallet', walletRouter);
+  app.use('/api/v1/vendors/plans', vendorPlansRouter);
+  app.use('/api/payments', paymentsRouter);
+
+  // Schema sync runs on every boot — see ensureSchema.ts for why this
+  // replaced `npm run db:push` as a required manual step. Seeding is
+  // still caught separately: schema sync succeeding doesn't guarantee
+  // the categories/plans seed queries can't fail for some unrelated
+  // reason, and either way a seeding problem shouldn't crash the process
+  // before the health check can come up.
+  try {
+    await ensureSchema();
+    await seedCategories();
+    await seedVendorPlans();
+  } catch (error) {
+    console.error('Startup schema sync or seeding failed:', error);
+  }
 
   // API Routes
   app.get("/api/health", (req, res) => {
@@ -29,7 +67,14 @@ async function startServer() {
     try {
       const { phone, pin } = req.body;
       if (!phone || !pin) return res.status(400).json({ error: "Phone and PIN required" });
-      
+
+      // A 4-digit PIN is only 10,000 combinations, so this route needs a
+      // real cost to guessing — cap attempts per phone number rather than
+      // relying on the PIN comparison alone.
+      if (!checkRateLimit(`auth:${phone}`, 5, 15 * 60 * 1000)) {
+        return res.status(429).json({ error: "Trop de tentatives. Reessayez plus tard." });
+      }
+
       const user = await getOrCreatePhoneUser(phone, pin);
       const token = jwt.sign({ uid: user.uid, phone: user.phoneNumber }, JWT_SECRET, { expiresIn: '7d' });
       
@@ -77,25 +122,43 @@ async function startServer() {
     }
   });
 
-  // Get feed listings
+  // Home page categories rail — admin-editable, seeded once from the old
+  // hardcoded list (see seedCategories).
+  app.get("/api/v1/categories", async (_req, res) => {
+    try {
+      res.json(await listActiveCategories());
+    } catch (error) {
+      console.error("Fetch categories error:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  // One request for the whole home screen: the active feed plus which of
+  // those listings are "featured" right now — a vendor plan lapsing takes
+  // effect on the very next fetch since featured is derived, not stored.
+  app.get("/api/v1/home", async (req, res) => {
+    try {
+      const category = typeof req.query.category === "string" ? req.query.category : undefined;
+      const feed = await getHomeFeed(category);
+      // Only the home-page display settings and the wallet-purchase switch
+      // go out here — commission/fee defaults are margin, not something an
+      // unauthenticated endpoint should ever publish (same reasoning as
+      // the sister app's publicService()).
+      const { home, walletPurchaseEnabled } = await getSettings();
+      res.json({ ...feed, home, walletPurchaseEnabled });
+    } catch (error) {
+      console.error("Fetch home feed error:", error);
+      res.status(500).json({ error: "Failed to fetch home feed" });
+    }
+  });
+
+  // Kept for any existing caller — same feed, without the featured split.
   app.get("/api/v1/listings", async (req, res) => {
     try {
-      // For simplicity, just joining to get vendor details
-      const feed = await db.select({
-        id: listings.id,
-        title: listings.title,
-        price: listings.price,
-        description: listings.description,
-        image: listings.image,
-        currency: listings.currency,
-        whatsapp: listings.whatsapp,
-        vendorId: vendors.id,
-        vendorName: vendors.boutiqueName,
-        vendorBadge: vendors.badgeStatus,
-      }).from(listings).innerJoin(vendors, eq(listings.vendorId, vendors.id)).orderBy(desc(listings.createdAt));
-      
-      res.json(feed);
-    } catch (error: any) {
+      const category = typeof req.query.category === "string" ? req.query.category : undefined;
+      const { listings } = await getHomeFeed(category);
+      res.json(listings);
+    } catch (error) {
       console.error("Fetch listings error:", error);
       res.status(500).json({ error: "Failed to fetch listings" });
     }
@@ -105,11 +168,16 @@ async function startServer() {
   app.post("/api/v1/listings", requireAuth, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const uid = req.user!.uid;
-      const { title, description, price } = req.body;
+      const { title, description, price, category } = req.body;
       const user = await getUserWithVendor(uid);
-      
+
       if (!user || !user.vendor) {
         return res.status(403).json({ error: "User is not a vendor" });
+      }
+
+      const priceNumber = Number(price);
+      if (!title || !Number.isFinite(priceNumber) || priceNumber <= 0) {
+        return res.status(400).json({ error: "Titre et prix (nombre positif) requis" });
       }
 
       // In a real app, upload file to GCS/Firebase Storage and get URL.
@@ -119,27 +187,38 @@ async function startServer() {
          imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
       }
 
-      const newListing = await db.insert(listings).values({
+      const newListing = await createListingForVendor({
         vendorId: user.vendor.id,
         title,
         description,
-        price: price.toString(),
+        price: priceNumber.toString(),
         image: imageUrl,
         whatsapp: user.vendor.whatsappNumber,
-      }).returning();
+        category: category || null,
+      });
 
-      res.json(newListing[0]);
+      res.json(newListing);
     } catch (error: any) {
+      if (error instanceof ListingLimitError) {
+        return res.status(403).json({ error: error.message });
+      }
       console.error("Create listing error:", error);
       res.status(500).json({ error: "Failed to create listing" });
     }
   });
 
   // Mock Gemini API for Description Generation
-  app.post("/api/ai/generate", upload.single("image"), async (req, res) => {
+  app.post("/api/ai/generate", requireAuth, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const { title } = req.body;
       const file = req.file;
+
+      // This spends the shared GEMINI_API_KEY quota per call — cap it per
+      // signed-in user rather than leaving it open to anyone who can reach
+      // the route.
+      if (!checkRateLimit(`ai:${req.user!.uid}`, 20, 60 * 60 * 1000)) {
+        return res.status(429).json({ error: "Trop de generations. Reessayez plus tard." });
+      }
 
       if (!process.env.GEMINI_API_KEY) {
         return res.status(500).json({ error: "Gemini API key is not configured." });
@@ -197,4 +276,7 @@ Keep it short, engaging, and suitable for mobile (Instagram/Snapchat style). Inc
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error('Fatal error during startup:', error);
+  process.exit(1);
+});

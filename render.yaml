@@ -1,0 +1,60 @@
+databases:
+  # Users, vendors, listings, vendor plans/subscriptions, categories,
+  # settings, and chat — see src/db/schema.ts. The actual tables are kept
+  # in sync by src/db/ensureSchema.ts, which runs on every boot (same
+  # pattern as the sister app's ensureSchema()) — no manual migration step
+  # needed after the first deploy or after a future schema.ts change.
+  - name: expattouba-db
+    plan: free
+    region: frankfurt
+    databaseName: expattouba
+    user: expattouba
+
+services:
+  - type: web
+    name: expattouba
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: expattouba-db
+          property: connectionString
+      # Signs the custom phone/PIN JWT (src/lib/jwt.ts). Render generates
+      # and stores this; it is never in source, and losing/rotating it
+      # just signs everyone out of a phone/PIN session (Google sign-in
+      # is unaffected).
+      - key: JWT_SECRET
+        generateValue: true
+      # Grants /admin access to this email on its first Google sign-in
+      # (src/db/users.ts) — the only way to bootstrap the first admin,
+      # since there is no separate admin login. Every admin after that is
+      # granted from the Users page instead. Comma-separated for more
+      # than one.
+      - key: ADMIN_EMAILS
+        sync: false
+      # AI-generated listing descriptions (server.ts, /api/ai/generate).
+      # Optional: that route 500s with a clear message if unset rather
+      # than crashing the whole app, so a first deploy without it still
+      # boots.
+      - key: GEMINI_API_KEY
+        sync: false
+      # Vendor plan checkout (src/lib/paydunya.ts). All four optional —
+      # without them, "Payer avec Paydunya" honestly reports itself
+      # unavailable instead of failing every attempt; an admin can still
+      # assign a plan manually regardless.
+      - key: PAYDUNYA_MASTER_KEY
+        sync: false
+      - key: PAYDUNYA_PRIVATE_KEY
+        sync: false
+      - key: PAYDUNYA_PUBLIC_KEY
+        sync: false
+      - key: PAYDUNYA_TOKEN
+        sync: false
