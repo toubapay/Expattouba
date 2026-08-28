@@ -1,0 +1,54 @@
+name: senemarket
+description: SeneMarket — native client for the Expattouba backend (classifieds, wallet, vendor plans, chat).
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+# NOTE: this file was written by hand — there is no Flutter/Dart SDK in the
+# environment that produced it, so `flutter pub get` has never actually
+# been run against it. Version constraints below are caret ranges around
+# releases known to exist at the time this was written; pub's resolver
+# will settle on whatever's actually current and compatible when you run
+# `flutter pub get` for the first time. If a version bound turns out to be
+# stale, widen it — nothing here is pinned to an exact patch on purpose.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking + local persistence
+  http: ^1.2.0
+  shared_preferences: ^2.2.2
+
+  # Auth — phone/PIN talks to our own backend and needs none of this;
+  # Google sign-in is web-only here (see services/auth_service.dart's
+  # doc comment for why), so these are only exercised on the web target.
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.0
+  google_sign_in: ^6.2.1
+
+  # Appeler / WhatsApp / Paydunya checkout redirect
+  url_launcher: ^6.2.5
+
+  # Listing photos + the AI-description reference image
+  image_picker: ^1.0.7
+
+  # fr-FR number/date formatting, matching the web app's
+  # toLocaleString('fr-FR')
+  intl: ^0.19.0
+
+  # Small app-wide state (auth/session) shared across screens without
+  # threading it through every constructor — same role AuthContext plays
+  # in the web app.
+  provider: ^6.1.2
+
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
