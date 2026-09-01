@@ -4,8 +4,17 @@ databases:
   # in sync by src/db/ensureSchema.ts, which runs on every boot (same
   # pattern as the sister app's ensureSchema()) — no manual migration step
   # needed after the first deploy or after a future schema.ts change.
+  #
+  # basic-256mb, not free: this database holds real wallet balances and
+  # Paydunya payment history, and Render's free Postgres tier is deleted
+  # after 30 days with no backups — acceptable for a demo, not for money.
+  # 256MB is tight because listing photos are currently stored as base64
+  # in this same database (server.ts's upload handler) rather than in
+  # object storage; moving those out (see the image-hosting note wherever
+  # that's tracked) buys much more headroom than jumping straight to
+  # basic-1gb ($19-20/mo vs ~$6-7/mo) would.
   - name: expattouba-db
-    plan: free
+    plan: basic-256mb
     region: frankfurt
     databaseName: expattouba
     user: expattouba
