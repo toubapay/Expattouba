@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Routes, Route, NavLink, Link } from "react-router-dom";
 import { LayoutDashboard, Users, Tags, Award, Store, Settings, ArrowLeft, Menu, X } from "lucide-react";
 import { useAuth } from "../components/AuthContext";
-import { AuthView } from "../components/AuthView";
+import { AdminLoginView } from "./AdminLoginView";
 import { AdminDashboardPage } from "./AdminDashboardPage";
 import { AdminUsersPage } from "./AdminUsersPage";
 import { AdminCategoriesPage } from "./AdminCategoriesPage";
@@ -31,7 +31,7 @@ export function AdminApp() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <AuthView />
+          <AdminLoginView />
         </div>
       </div>
     );

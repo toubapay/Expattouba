@@ -26,7 +26,7 @@ export const requireAuth = async (
   // kind of token.
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    req.user = { uid: decoded.uid, phone: decoded.phone };
+    req.user = { uid: decoded.uid, phone: decoded.phone, email: decoded.email };
     return next();
   } catch {
     // Not one of our tokens — fall through to Firebase verification below.

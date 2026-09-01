@@ -43,11 +43,18 @@ services:
       - key: JWT_SECRET
         generateValue: true
       # Grants /admin access to this email on its first Google sign-in
-      # (src/db/users.ts) — the only way to bootstrap the first admin,
-      # since there is no separate admin login. Every admin after that is
-      # granted from the Users page instead. Comma-separated for more
-      # than one.
+      # (src/db/users.ts). Every admin after the first is granted from the
+      # Users page instead. Comma-separated for more than one.
       - key: ADMIN_EMAILS
+        sync: false
+      # Email+password login for one superadmin account, independent of
+      # Google/ADMIN_EMAILS (src/db/users.ts's ensureSuperAdmin) — set both
+      # or neither. Re-synced on every boot, so changing the password here
+      # takes effect on the next deploy with no manual DB update. Optional:
+      # ADMIN_EMAILS + Google sign-in still works on its own without these.
+      - key: SUPERADMIN_EMAIL
+        sync: false
+      - key: SUPERADMIN_PASSWORD
         sync: false
       # AI-generated listing descriptions (server.ts, /api/ai/generate).
       # Optional: that route 500s with a clear message if unset rather

@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithPhone: (phone: string, pin: string) => Promise<void>;
+  signInWithAdminCredentials: (email: string, password: string) => Promise<void>;
   logOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   getToken: () => Promise<string | null>;
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signInWithGoogle: async () => {},
   signInWithPhone: async () => {},
+  signInWithAdminCredentials: async () => {},
   logOut: async () => {},
   refreshUser: async () => {},
   getToken: async () => null,
@@ -102,6 +104,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCustomToken(data.token);
   };
 
+  // Superadmin email+password login (src/db/users.ts's ensureSuperAdmin) —
+  // shares the same custom-JWT storage as phone login above ('phoneToken'
+  // is really "our own JWT, not a Firebase one", regardless of which route
+  // issued it), so the rest of this context treats both identically.
+  const signInWithAdminCredentials = async (email: string, password: string) => {
+    const res = await fetch('/api/v1/auth/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Invalid login');
+    }
+    const data = await res.json();
+    localStorage.setItem('phoneToken', data.token);
+    setCustomToken(data.token);
+  };
+
   const logOut = async () => {
     if (customToken) {
       localStorage.removeItem('phoneToken');
@@ -114,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, dbUser, loading, signInWithGoogle, signInWithPhone, logOut, refreshUser, getToken }}>
+    <AuthContext.Provider value={{ user, dbUser, loading, signInWithGoogle, signInWithPhone, signInWithAdminCredentials, logOut, refreshUser, getToken }}>
       {children}
     </AuthContext.Provider>
   );
