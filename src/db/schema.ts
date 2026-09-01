@@ -7,10 +7,15 @@ export const users = pgTable('users', {
   email: text('email'), // Made optional since phone users won't have it initially
   phoneNumber: text('phone_number').unique(),
   pin: text('pin'), // 4-digit pin (hashed or plain for prototype)
+  // Only ever set for the env-var-bootstrapped superadmin account (see
+  // ensureSuperAdmin in users.ts) — Google and phone/PIN accounts never
+  // have one, and this is what lets that one account sign in without
+  // depending on ADMIN_EMAILS + Google working correctly.
+  passwordHash: text('password_hash'),
   walletBalance: decimal('wallet_balance', { precision: 12, scale: 2 }).default('0.00'),
-  // Grants access to /admin. Set directly in the DB, or automatically on
-  // first Google sign-in when the email is listed in ADMIN_EMAILS — there is
-  // no separate admin login, admins are just users with this flag.
+  // Grants access to /admin. Set directly in the DB, automatically on first
+  // Google sign-in when the email is listed in ADMIN_EMAILS, or via the
+  // email+password superadmin login below.
   isAdmin: boolean('is_admin').default(false),
   createdAt: timestamp('created_at').defaultNow(),
 });

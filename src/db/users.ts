@@ -24,6 +24,48 @@ export async function getOrCreateUser(uid: string, email: string) {
   return result[0];
 }
 
+/**
+ * Bootstraps (or re-syncs) one admin account from SUPERADMIN_EMAIL /
+ * SUPERADMIN_PASSWORD env vars, run on every boot alongside ensureSchema.
+ * Unlike ADMIN_EMAILS (which only ever grants, never revokes, so a
+ * customer's admin flag can't be silently pulled by a redeploy), this is a
+ * deliberate bootstrap knob rather than customer state: the whole point is
+ * a working login that doesn't depend on Google/ADMIN_EMAILS being
+ * correctly wired, so the password is re-synced to match the env var on
+ * every boot — rotate it there and it takes effect on the next deploy.
+ *
+ * uid follows the same `<kind>:<identifier>` convention as phone accounts
+ * (`phone:${phone}`) rather than reusing a real email as the uid, so this
+ * never collides with a Google-authenticated row that happens to share the
+ * same email address — the two stay entirely separate accounts.
+ */
+export async function ensureSuperAdmin() {
+  const email = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.SUPERADMIN_PASSWORD;
+  if (!email || !password) return;
+
+  const uid = `admin:${email}`;
+  const passwordHash = hashPin(password);
+  await db.insert(users)
+    .values({ uid, email, isAdmin: true, passwordHash })
+    .onConflictDoUpdate({
+      target: users.uid,
+      set: { email, isAdmin: true, passwordHash },
+    });
+}
+
+/** Email+password login for the superadmin account only — regular accounts
+ * (Google or phone/PIN) never have a passwordHash, so this can't be used to
+ * authenticate as them even if someone guessed their email. */
+export async function verifyAdminLogin(email: string, password: string) {
+  const rows = await db.select().from(users).where(eq(users.email, email.trim().toLowerCase()));
+  const admin = rows.find((u) => u.isAdmin && u.passwordHash);
+  if (!admin || !admin.passwordHash || !verifyPin(password, admin.passwordHash)) {
+    throw new Error('Invalid credentials');
+  }
+  return admin;
+}
+
 export async function getOrCreatePhoneUser(phone: string, pin: string) {
   const existing = await db.select().from(users).where(eq(users.phoneNumber, phone));
   if (existing.length > 0) {
@@ -65,10 +107,10 @@ export async function getVendorIdForUid(uid: string) {
 export async function getUserWithVendor(uid: string) {
   const userList = await db.select().from(users).where(eq(users.uid, uid));
   if (userList.length === 0) return null;
-  // pin is a credential (hashed or not) and this result is sent straight
-  // back to the client as the /api/v1/auth/* response body — it must never
-  // leave the server.
-  const { pin, ...user } = userList[0];
+  // pin and passwordHash are credentials (hashed or not) and this result is
+  // sent straight back to the client as the /api/v1/auth/* response body —
+  // neither must ever leave the server.
+  const { pin, passwordHash, ...user } = userList[0];
 
   const vendorList = await db.select().from(vendors).where(eq(vendors.userId, user.id));
   return {

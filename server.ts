@@ -4,7 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import multer from "multer";
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
-import { getOrCreateUser, getUserWithVendor, getOrCreatePhoneUser } from './src/db/users.ts';
+import { getOrCreateUser, getUserWithVendor, getOrCreatePhoneUser, ensureSuperAdmin, verifyAdminLogin } from './src/db/users.ts';
 import { db } from './src/db/index.ts';
 import { vendors } from './src/db/schema.ts';
 import jwt from 'jsonwebtoken';
@@ -51,6 +51,7 @@ async function startServer() {
   // before the health check can come up.
   try {
     await ensureSchema();
+    await ensureSuperAdmin();
     await seedCategories();
     await seedVendorPlans();
   } catch (error) {
@@ -83,6 +84,31 @@ async function startServer() {
     } catch (error: any) {
       console.error("Phone auth error:", error);
       res.status(401).json({ error: error.message || "Authentication failed" });
+    }
+  });
+
+  // Superadmin email+password login — see users.ts's ensureSuperAdmin for
+  // why this exists alongside Google/ADMIN_EMAILS rather than replacing it.
+  app.post("/api/v1/auth/admin-login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ error: "Email et mot de passe requis" });
+
+      if (!checkRateLimit(`admin-login:${email}`, 5, 15 * 60 * 1000)) {
+        return res.status(429).json({ error: "Trop de tentatives. Reessayez plus tard." });
+      }
+
+      const admin = await verifyAdminLogin(email, password);
+      // email goes in the token too, not just uid — /api/v1/auth/sync
+      // (shared with phone/Google) reads req.user.email and upserts it
+      // straight into the users row; without it, the first sync call
+      // after login would overwrite this account's email to empty.
+      const token = jwt.sign({ uid: admin.uid, email: admin.email }, JWT_SECRET, { expiresIn: '7d' });
+
+      const userWithVendor = await getUserWithVendor(admin.uid);
+      res.json({ token, user: userWithVendor });
+    } catch (error: any) {
+      res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
   });
 

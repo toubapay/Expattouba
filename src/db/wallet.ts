@@ -47,9 +47,9 @@ export async function adjustWalletForUser(userId: string, amountFcfa: number, no
       note,
     });
     // Same reasoning as getUserWithVendor: this row goes straight back to
-    // the admin client as the response body, and pin (hashed or not) must
-    // never leave the server.
-    const { pin, ...user } = updated[0];
+    // the admin client as the response body, and pin/passwordHash (hashed
+    // or not) must never leave the server.
+    const { pin, passwordHash, ...user } = updated[0];
     return user;
   });
 }

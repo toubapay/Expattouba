@@ -32,6 +32,7 @@ export async function ensureSchema() {
       created_at timestamp DEFAULT now()
     );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin boolean DEFAULT false;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash text;
 
     CREATE TABLE IF NOT EXISTS vendors (
       id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
