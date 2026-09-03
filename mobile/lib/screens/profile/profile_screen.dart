@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../chat/chat_inbox_screen.dart';
+import 'favorites_screen.dart';
 import 'vendor_plans_screen.dart';
 
 /// Mirrors ProfileView.tsx.
@@ -96,6 +97,12 @@ class ProfileScreen extends StatelessWidget {
                         iconColor: AppColors.orange,
                         label: 'Mes messages',
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatInboxScreen())),
+                      ),
+                      _Row(
+                        icon: Icons.favorite_outline_rounded,
+                        iconColor: AppColors.red,
+                        label: 'Mes favoris',
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FavoritesScreen())),
                       ),
                     ]),
                     const SizedBox(height: 20),

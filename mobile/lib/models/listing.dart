@@ -1,8 +1,10 @@
-/// Mirrors the row shape returned by GET /api/v1/home and
-/// GET /api/v1/listings (src/db/listings.ts's FeedListing). Parsing is
-/// deliberately defensive (nulls/missing fields fall back rather than
-/// throw) since this is hand-written against the API's shape from memory,
-/// not verified against a live response.
+/// Mirrors the row shape returned by GET /api/v1/home, GET /api/v1/listings
+/// and GET /api/v1/favorites (src/db/listings.ts's FeedListing —
+/// src/db/favorites.ts's listFavoritesForUser returns the same shape minus
+/// featured/priorityRank, both defaulted below so one model covers both).
+/// Parsing is deliberately defensive (nulls/missing fields fall back
+/// rather than throw) since this is hand-written against the API's shape,
+/// not verified by a compiler.
 class Listing {
   final String id;
   final String title;
@@ -12,6 +14,9 @@ class Listing {
   final String? image;
   final String? whatsapp;
   final String? category;
+  final String? city;
+  final Map<String, dynamic>? attributes;
+  final DateTime? createdAt;
   final String vendorId;
   final String vendorName;
   final String? vendorBadge;
@@ -26,6 +31,9 @@ class Listing {
     this.image,
     this.whatsapp,
     this.category,
+    this.city,
+    this.attributes,
+    this.createdAt,
     required this.vendorId,
     required this.vendorName,
     this.vendorBadge,
@@ -42,6 +50,9 @@ class Listing {
       image: json['image']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
       category: json['category']?.toString(),
+      city: json['city']?.toString(),
+      attributes: json['attributes'] is Map ? Map<String, dynamic>.from(json['attributes'] as Map) : null,
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
       vendorId: json['vendorId']?.toString() ?? '',
       vendorName: json['vendorName']?.toString() ?? '',
       vendorBadge: json['vendorBadge']?.toString(),
@@ -54,14 +65,19 @@ class Category {
   final String id;
   final String name;
   final String icon;
+  // NULL = a plain listing. Any other value is a key in kFieldSets (see
+  // theme/category_fields.dart) — what tells PostListingScreen which
+  // extra fields to render for a listing in this category.
+  final String? fieldSet;
 
-  Category({required this.id, required this.name, required this.icon});
+  Category({required this.id, required this.name, required this.icon, this.fieldSet});
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       icon: json['icon']?.toString() ?? '🛍️',
+      fieldSet: json['fieldSet']?.toString(),
     );
   }
 }

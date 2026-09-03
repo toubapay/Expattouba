@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'api_client.dart';
 
@@ -15,6 +16,8 @@ class ListingRepository {
     required String description,
     required num price,
     String? category,
+    String? city,
+    Map<String, dynamic>? attributes,
     Uint8List? imageBytes,
   }) async {
     try {
@@ -25,6 +28,8 @@ class ListingRepository {
           'description': description,
           'price': price.toString(),
           if (category != null && category.isNotEmpty) 'category': category,
+          if (city != null && city.isNotEmpty) 'city': city,
+          if (attributes != null) 'attributes': jsonEncode(attributes),
         },
         imageBytes: imageBytes,
       );

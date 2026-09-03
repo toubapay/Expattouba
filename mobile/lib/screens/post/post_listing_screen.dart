@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/catalog_repository.dart';
 import '../../services/listing_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/category_fields.dart';
 import '../../models/listing.dart';
 
 /// Mirrors PostView.tsx: title/category/price/description, an
@@ -25,9 +26,29 @@ class _PostListingScreenState extends State<PostListingScreen> {
   final _descriptionController = TextEditingController();
   String? _category;
   List<Category> _categories = [];
+  String? _city;
+  Map<String, dynamic> _attributes = {};
   Uint8List? _imageBytes;
   bool _generating = false;
   bool _submitting = false;
+
+  List<FieldDef> get _fields {
+    final fieldSet = _categories.firstWhere((c) => c.name == _category, orElse: () => Category(id: '', name: '', icon: '')).fieldSet;
+    return fieldSet != null ? (kFieldSets[fieldSet] ?? []) : [];
+  }
+
+  void _onCategoryChanged(String? value) {
+    setState(() {
+      _category = value;
+      // A vehicle's "mileage" left over after switching to Immobilier
+      // would silently attach to a real-estate listing — clear it.
+      _attributes = {};
+    });
+  }
+
+  void _setAttr(String key, String value) {
+    setState(() => _attributes = {..._attributes, key: value});
+  }
 
   late final ListingRepository _listingRepo;
   late final CatalogRepository _catalogRepo;
@@ -84,6 +105,10 @@ class _PostListingScreenState extends State<PostListingScreen> {
       _showMessage('Titre et prix (nombre positif) requis.');
       return;
     }
+    if (_city == null) {
+      _showMessage('Veuillez choisir une ville.');
+      return;
+    }
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -91,6 +116,8 @@ class _PostListingScreenState extends State<PostListingScreen> {
         title: title,
         price: price,
         description: _descriptionController.text.trim(),
+        city: _city!,
+        attributesSummary: summarizeAttributes(_attributes),
         imageBytes: _imageBytes,
       ),
     );
@@ -103,6 +130,8 @@ class _PostListingScreenState extends State<PostListingScreen> {
         description: _descriptionController.text.trim(),
         price: price,
         category: _category,
+        city: _city,
+        attributes: _fields.isNotEmpty ? _attributes : null,
         imageBytes: _imageBytes,
       );
       if (!mounted) return;
@@ -112,6 +141,8 @@ class _PostListingScreenState extends State<PostListingScreen> {
         _priceController.clear();
         _descriptionController.clear();
         _category = null;
+        _city = null;
+        _attributes = {};
         _imageBytes = null;
       });
     } on ListingLimitException catch (e) {
@@ -190,8 +221,48 @@ class _PostListingScreenState extends State<PostListingScreen> {
                 items: _categories
                     .map((c) => DropdownMenuItem(value: c.name, child: Text('${c.icon} ${c.name}')))
                     .toList(),
-                onChanged: (v) => setState(() => _category = v),
+                onChanged: _onCategoryChanged,
               ),
+              const SizedBox(height: 16),
+              const _Label('Ville'),
+              DropdownButtonFormField<String>(
+                value: _city,
+                decoration: const InputDecoration(),
+                hint: const Text('Choisir une ville...'),
+                items: kSenegalCities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                onChanged: (v) => setState(() => _city = v),
+              ),
+              if (_fields.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: AppColors.orangeLight, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFFFE4CC))),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Détails ${_category ?? ''}'.trim(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.orangeDark)),
+                      const SizedBox(height: 10),
+                      for (final f in _fields) ...[
+                        _Label(f.unit != null ? '${f.label} (${f.unit})' : f.label),
+                        f.type == FieldType.select
+                            ? DropdownButtonFormField<String>(
+                                value: (_attributes[f.key] as String?)?.isNotEmpty == true ? _attributes[f.key] as String : null,
+                                decoration: const InputDecoration(filled: true, fillColor: Colors.white),
+                                hint: const Text('Choisir...'),
+                                items: (f.options ?? []).map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+                                onChanged: (v) => _setAttr(f.key, v ?? ''),
+                              )
+                            : TextField(
+                                keyboardType: f.type == FieldType.number ? TextInputType.number : TextInputType.text,
+                                decoration: const InputDecoration(filled: true, fillColor: Colors.white),
+                                onChanged: (v) => _setAttr(f.key, v),
+                              ),
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               const _Label('Prix (FCFA)'),
               TextField(
@@ -248,8 +319,17 @@ class _ConfirmSheet extends StatelessWidget {
   final String title;
   final num price;
   final String description;
+  final String city;
+  final String attributesSummary;
   final Uint8List? imageBytes;
-  const _ConfirmSheet({required this.title, required this.price, required this.description, this.imageBytes});
+  const _ConfirmSheet({
+    required this.title,
+    required this.price,
+    required this.description,
+    required this.city,
+    required this.attributesSummary,
+    this.imageBytes,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -277,6 +357,10 @@ class _ConfirmSheet extends StatelessWidget {
                     children: [
                       Text(title, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
                       Text('${formatFcfa(price)} FCFA', style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w900)),
+                      Text(
+                        [city, attributesSummary].where((s) => s.isNotEmpty).join(' • '),
+                        style: const TextStyle(color: AppColors.gray500, fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),

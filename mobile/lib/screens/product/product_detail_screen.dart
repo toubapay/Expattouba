@@ -7,6 +7,8 @@ import '../../services/auth_service.dart';
 import '../../services/chat_repository.dart';
 import '../../services/wallet_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/category_fields.dart';
+import '../../theme/format_date.dart';
 import '../../widgets/listing_image.dart';
 import '../chat/chat_screen.dart';
 
@@ -132,6 +134,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               left: 12,
                               child: _RoundIconButton(icon: Icons.arrow_back, onTap: () => Navigator.of(context).pop()),
                             ),
+                            Positioned(
+                              top: 12,
+                              right: 12,
+                              child: _FavoriteToggle(listingId: listing.id),
+                            ),
                           ],
                         ),
                         Padding(
@@ -146,13 +153,50 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.orange),
                               ),
                               const SizedBox(height: 12),
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.location_on_outlined, size: 16, color: AppColors.gray500),
-                                  SizedBox(width: 4),
-                                  Text('Dakar, Sénégal', style: TextStyle(color: AppColors.gray500, fontSize: 13)),
+                                  const Icon(Icons.location_on_outlined, size: 16, color: AppColors.gray500),
+                                  const SizedBox(width: 4),
+                                  Text(listing.city != null ? '${listing.city}, Sénégal' : 'Sénégal', style: const TextStyle(color: AppColors.gray500, fontSize: 13)),
+                                  if (listing.createdAt != null) ...[
+                                    const Text(' • ', style: TextStyle(color: AppColors.gray500, fontSize: 13)),
+                                    Text('Publié ${formatRelativeTime(listing.createdAt!)}', style: const TextStyle(color: AppColors.gray500, fontSize: 13)),
+                                  ],
                                 ],
                               ),
+                              if (attributeRows(listing.attributes).isNotEmpty) ...[
+                                const Divider(height: 32),
+                                const Text('Détails', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                const SizedBox(height: 10),
+                                // LayoutBuilder rather than MediaQuery.size.width: this
+                                // content sits inside a 640px-capped container on a wide
+                                // screen (see the isWide branch below), so the *screen*
+                                // width would badly oversize each box there — the local
+                                // constraint is whatever's actually available here.
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final boxWidth = (constraints.maxWidth - 10) / 2;
+                                    return Wrap(
+                                      spacing: 10,
+                                      runSpacing: 10,
+                                      children: attributeRows(listing.attributes).map((row) {
+                                        return Container(
+                                          width: boxWidth,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(color: AppColors.gray50, borderRadius: BorderRadius.circular(12)),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(row.label.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.gray400)),
+                                              Text(row.value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.gray900)),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    );
+                                  },
+                                ),
+                              ],
                               const Divider(height: 32),
                               const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               const SizedBox(height: 8),
@@ -353,6 +397,29 @@ class _RoundIconButton extends StatelessWidget {
       color: Colors.white.withValues(alpha: 0.85),
       shape: const CircleBorder(),
       child: IconButton(icon: Icon(icon, color: AppColors.gray900), onPressed: onTap),
+    );
+  }
+}
+
+class _FavoriteToggle extends StatelessWidget {
+  final String listingId;
+  const _FavoriteToggle({required this.listingId});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthService>();
+    if (!auth.isLoggedIn) return const SizedBox.shrink();
+    final active = auth.favoriteIds.contains(listingId);
+    return Material(
+      color: Colors.white.withValues(alpha: 0.85),
+      shape: const CircleBorder(),
+      child: IconButton(
+        icon: Icon(
+          active ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          color: active ? AppColors.red : AppColors.gray900,
+        ),
+        onPressed: () => auth.toggleFavorite(listingId),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
+import 'favorites_repository.dart';
 import '../models/app_user.dart';
 
 /// Session state for the whole app — the same role AuthContext.tsx plays
@@ -23,6 +24,12 @@ class AuthService extends ChangeNotifier {
   AppUser? dbUser;
   bool loading = true;
 
+  // Loaded once on login/sync, kept as ids only (not full listings) so
+  // every heart icon on the page can check membership without its own
+  // fetch — same reasoning as AuthContext.tsx's favoriteIds.
+  Set<String> favoriteIds = {};
+  late final FavoritesRepository _favoritesRepo = FavoritesRepository(_apiWithToken);
+
   bool get isLoggedIn => _phoneToken != null || _firebaseUser != null;
   bool get isPhoneAuth => _phoneToken != null;
 
@@ -42,6 +49,7 @@ class AuthService extends ChangeNotifier {
           await refreshUser();
         } else if (user == null && _phoneToken == null) {
           dbUser = null;
+          favoriteIds = {};
         }
         loading = false;
         notifyListeners();
@@ -74,7 +82,46 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       debugPrint('refreshUser failed: $e');
     }
+    await _refreshFavoriteIds();
     notifyListeners();
+  }
+
+  Future<void> _refreshFavoriteIds() async {
+    try {
+      favoriteIds = await _favoritesRepo.fetchIds();
+    } catch (e) {
+      debugPrint('refreshFavoriteIds failed: $e');
+    }
+  }
+
+  /// Optimistic: the heart icon flips immediately, then this reconciles
+  /// with the server. A failed request rolls the local set back rather
+  /// than leaving the UI claiming a state the database doesn't have.
+  Future<void> toggleFavorite(String listingId) async {
+    final wasFavorited = favoriteIds.contains(listingId);
+    favoriteIds = Set.of(favoriteIds);
+    if (wasFavorited) {
+      favoriteIds.remove(listingId);
+    } else {
+      favoriteIds.add(listingId);
+    }
+    notifyListeners();
+    try {
+      if (wasFavorited) {
+        await _favoritesRepo.remove(listingId);
+      } else {
+        await _favoritesRepo.add(listingId);
+      }
+    } catch (e) {
+      debugPrint('toggleFavorite failed: $e');
+      favoriteIds = Set.of(favoriteIds);
+      if (wasFavorited) {
+        favoriteIds.add(listingId);
+      } else {
+        favoriteIds.remove(listingId);
+      }
+      notifyListeners();
+    }
   }
 
   Future<void> signInWithPhone(String phone, String pin) async {
@@ -90,6 +137,7 @@ class AuthService extends ChangeNotifier {
     await prefs.setString(_phoneTokenKey, token);
     _phoneToken = token;
     dbUser = AppUser.fromJson(result['user'] as Map<String, dynamic>);
+    await _refreshFavoriteIds();
     loading = false;
     notifyListeners();
   }
@@ -120,6 +168,7 @@ class AuthService extends ChangeNotifier {
       _firebaseUser = null;
     }
     dbUser = null;
+    favoriteIds = {};
     notifyListeners();
   }
 }
