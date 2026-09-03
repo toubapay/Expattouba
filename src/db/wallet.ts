@@ -2,11 +2,12 @@ import { db } from './index.ts';
 import { listings, transactions, users, vendors } from './schema.ts';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { getCurrentPlanForVendor } from './vendorSubscriptions.ts';
-import { getEffectiveFees } from './settings.ts';
+import { getEffectiveFees, getSettings } from './settings.ts';
 
 export class InsufficientFundsError extends Error {}
 export class ListingUnavailableError extends Error {}
 export class OwnListingError extends Error {}
+export class PurchaseDisabledError extends Error {}
 
 export async function listTransactionsForUser(userId: string, limit = 50) {
   return db
@@ -69,6 +70,14 @@ export async function adjustWalletForUser(userId: string, amountFcfa: number, no
  * db.transaction.
  */
 export async function purchaseListing(buyerId: string, listingId: string) {
+  // The admin's "Achat en application" toggle (Paramètres) was, until now,
+  // only a UI hint — ProductDetailView hid the button, but this route
+  // itself never checked it, so a disabled toggle didn't actually stop a
+  // direct POST here. That's the real enforcement point; hiding the
+  // button is just the honest reflection of it, not the mechanism.
+  const { walletPurchaseEnabled } = await getSettings();
+  if (!walletPurchaseEnabled) throw new PurchaseDisabledError("L'achat via le portefeuille est désactivé pour le moment");
+
   return db.transaction(async (tx) => {
     const listingRows = await tx.select().from(listings).where(eq(listings.id, listingId)).limit(1);
     const listing = listingRows[0];

@@ -58,6 +58,8 @@ export async function ensureSchema() {
       created_at timestamp DEFAULT now()
     );
     ALTER TABLE listings ADD COLUMN IF NOT EXISTS category text;
+    ALTER TABLE listings ADD COLUMN IF NOT EXISTS city text;
+    ALTER TABLE listings ADD COLUMN IF NOT EXISTS attributes jsonb;
 
     CREATE TABLE IF NOT EXISTS transactions (
       id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -79,6 +81,7 @@ export async function ensureSchema() {
       active boolean DEFAULT true,
       created_at timestamp DEFAULT now()
     );
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS field_set text;
 
     CREATE TABLE IF NOT EXISTS settings (
       key text PRIMARY KEY,
@@ -138,5 +141,13 @@ export async function ensureSchema() {
       body text NOT NULL,
       created_at timestamp DEFAULT now()
     );
+
+    CREATE TABLE IF NOT EXISTS favorites (
+      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      listing_id uuid NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+      created_at timestamp DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS favorites_user_listing_idx ON favorites(user_id, listing_id);
   `);
 }

@@ -7,6 +7,7 @@ import {
   InsufficientFundsError,
   ListingUnavailableError,
   OwnListingError,
+  PurchaseDisabledError,
 } from '../db/wallet.ts';
 
 export const walletRouter = Router();
@@ -37,6 +38,9 @@ walletRouter.post('/purchase', async (req: AuthRequest, res) => {
   } catch (error: any) {
     if (error instanceof InsufficientFundsError || error instanceof OwnListingError) {
       return res.status(400).json({ error: error.message });
+    }
+    if (error instanceof PurchaseDisabledError) {
+      return res.status(403).json({ error: error.message });
     }
     if (error instanceof ListingUnavailableError) {
       return res.status(409).json({ error: error.message });

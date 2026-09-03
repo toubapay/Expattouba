@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { decimal, integer, pgTable, text, timestamp, boolean, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
+import { decimal, integer, jsonb, pgTable, text, timestamp, boolean, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -42,6 +42,17 @@ export const listings = pgTable('listings', {
   image: text('image'),
   whatsapp: text('whatsapp'),
   category: text('category'),
+  // One of src/lib/categoryFields.ts's SENEGAL_CITIES — nullable only
+  // because listings created before this column existed have none; the
+  // post-listing form requires it going forward.
+  city: text('city'),
+  // Category-specific fields (bedrooms/surfaceM2 for real estate,
+  // year/mileageKm for vehicles, contractType/salaryMin for jobs — see
+  // src/lib/categoryFields.ts's FIELD_SETS). A generic classifieds listing
+  // has none of this, hence jsonb rather than a column per field: most
+  // categories use none of them, and a fixed column set can't grow with
+  // new field-sets without another migration.
+  attributes: jsonb('attributes').$type<Record<string, string | number>>(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -71,6 +82,11 @@ export const categories = pgTable('categories', {
   icon: text('icon').default('🛍️'), // a single emoji, rendered as-is
   sortOrder: integer('sort_order').default(0),
   active: boolean('active').default(true),
+  // NULL = a plain listing (title/description/price/image only). Any other
+  // value must be a key in src/lib/categoryFields.ts's FIELD_SETS — that's
+  // what tells PostView which extra fields to render for a listing in this
+  // category, and what gets stored in listings.attributes.
+  fieldSet: text('field_set'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -154,6 +170,23 @@ export const chatThreads = pgTable(
     // resolve to one thread, not a coin-flip pair of them (this raced for
     // real under React StrictMode's double effect invocation in dev).
     uniqueIndex('chat_threads_listing_buyer_idx').on(table.listingId, table.buyerUid),
+  ]
+);
+
+// A user's saved listings. One row per (user, listing) pair — the unique
+// index (not just an app-level check) is what makes "favoriting" an
+// already-favorited listing a harmless no-op rather than a duplicate row,
+// same reasoning as chat_threads' listing/buyer uniqueness above.
+export const favorites = pgTable(
+  'favorites',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+    listingId: uuid('listing_id').references(() => listings.id, { onDelete: 'cascade' }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('favorites_user_listing_idx').on(table.userId, table.listingId),
   ]
 );
 

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, Share2, MapPin, ShieldCheck, Flag, Phone, MessageCircle } from "lucide-react";
+import { ArrowLeft, Share2, MapPin, ShieldCheck, Flag, Phone, MessageCircle, Heart } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { ChatPanel } from "./ChatPanel";
+import { attributeRows } from "../lib/categoryFields";
+import { formatRelativeTime } from "../lib/formatDate";
 
 interface ProductDetailProps {
   listing: any;
@@ -17,7 +19,9 @@ interface ProductDetailProps {
 }
 
 export function ProductDetailView({ listing, onBack, onPurchased, walletPurchaseEnabled }: ProductDetailProps) {
-  const { user, getToken, refreshUser } = useAuth();
+  const { user, getToken, refreshUser, favoriteIds, toggleFavorite } = useAuth();
+  const isFavorited = favoriteIds.has(listing.id);
+  const rows = attributeRows(listing.attributes);
   const [chatThreadId, setChatThreadId] = useState<string | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
   const [buying, setBuying] = useState(false);
@@ -98,9 +102,20 @@ export function ProductDetailView({ listing, onBack, onPurchased, walletPurchase
         <button onClick={onBack} className="p-2 bg-white/80 backdrop-blur rounded-full shadow-sm">
           <ArrowLeft className="w-6 h-6 text-gray-900" />
         </button>
-        <button className="p-2 bg-white/80 backdrop-blur rounded-full shadow-sm">
-          <Share2 className="w-5 h-5 text-gray-900" />
-        </button>
+        <div className="flex space-x-2">
+          {user && (
+            <button
+              onClick={() => toggleFavorite(listing.id)}
+              className="p-2 bg-white/80 backdrop-blur rounded-full shadow-sm"
+              title={isFavorited ? "Retirer des favoris" : "Ajouter aux favoris"}
+            >
+              <Heart className={`w-5 h-5 ${isFavorited ? "fill-red-500 text-red-500" : "text-gray-900"}`} />
+            </button>
+          )}
+          <button className="p-2 bg-white/80 backdrop-blur rounded-full shadow-sm">
+            <Share2 className="w-5 h-5 text-gray-900" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-24">
@@ -122,10 +137,29 @@ export function ProductDetailView({ listing, onBack, onPurchased, walletPurchase
 
           <div className="flex items-center space-x-2 text-sm text-gray-500 mb-6 font-medium">
             <MapPin className="w-4 h-4" />
-            <span>Dakar, Sénégal</span>
-            <span>•</span>
-            <span>Publié il y a 2h</span>
+            <span>{listing.city ? `${listing.city}, Sénégal` : "Sénégal"}</span>
+            {listing.createdAt && (
+              <>
+                <span>•</span>
+                <span>Publié {formatRelativeTime(listing.createdAt)}</span>
+              </>
+            )}
           </div>
+
+          {rows.length > 0 && (
+            <>
+              <div className="h-px w-full bg-gray-100 mb-6"></div>
+              <h2 className="text-lg font-bold mb-3 text-gray-900">Détails</h2>
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {rows.map((row) => (
+                  <div key={row.label} className="bg-gray-50 rounded-xl px-3 py-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">{row.label}</p>
+                    <p className="text-sm font-bold text-gray-900">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           <div className="h-px w-full bg-gray-100 mb-6"></div>
 

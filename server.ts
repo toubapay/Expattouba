@@ -15,15 +15,36 @@ import { chatRouter } from './src/routes/chat.ts';
 import { walletRouter } from './src/routes/wallet.ts';
 import { vendorPlansRouter } from './src/routes/vendorPlans.ts';
 import { paymentsRouter } from './src/routes/payments.ts';
+import { favoritesRouter } from './src/routes/favorites.ts';
 import { ensureSchema } from './src/db/ensureSchema.ts';
 import { seedCategories, listActiveCategories } from './src/db/categories.ts';
 import { seedVendorPlans } from './src/db/vendorPlans.ts';
-import { getHomeFeed, createListingForVendor, ListingLimitError } from './src/db/listings.ts';
+import { getHomeFeed, createListingForVendor, ListingLimitError, ListingFilters } from './src/db/listings.ts';
 import { getSettings } from './src/db/settings.ts';
 
 // 5 MB cap: these routes buffer the whole upload into process memory
 // (memoryStorage), so an unbounded size is a trivial memory-exhaustion DoS.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+// Shared by GET /api/v1/home and GET /api/v1/listings — one place that
+// decides what a query string is allowed to mean, so the two endpoints
+// can't quietly diverge on how minPrice/maxPrice get parsed.
+function parseListingFilters(query: any): ListingFilters {
+  const str = (v: any) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  const num = (v: any) => {
+    const s = str(v);
+    if (s === undefined) return undefined;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  return {
+    category: str(query.category),
+    city: str(query.city),
+    minPrice: num(query.minPrice),
+    maxPrice: num(query.maxPrice),
+    q: str(query.q),
+  };
+}
 
 async function startServer() {
   const app = express();
@@ -42,6 +63,7 @@ async function startServer() {
   app.use('/api/v1/wallet', walletRouter);
   app.use('/api/v1/vendors/plans', vendorPlansRouter);
   app.use('/api/payments', paymentsRouter);
+  app.use('/api/v1/favorites', favoritesRouter);
 
   // Schema sync runs on every boot — see ensureSchema.ts for why this
   // replaced `npm run db:push` as a required manual step. Seeding is
@@ -164,8 +186,7 @@ async function startServer() {
   // effect on the very next fetch since featured is derived, not stored.
   app.get("/api/v1/home", async (req, res) => {
     try {
-      const category = typeof req.query.category === "string" ? req.query.category : undefined;
-      const feed = await getHomeFeed(category);
+      const feed = await getHomeFeed(parseListingFilters(req.query));
       // Only the home-page display settings and the wallet-purchase switch
       // go out here — commission/fee defaults are margin, not something an
       // unauthenticated endpoint should ever publish (same reasoning as
@@ -181,8 +202,7 @@ async function startServer() {
   // Kept for any existing caller — same feed, without the featured split.
   app.get("/api/v1/listings", async (req, res) => {
     try {
-      const category = typeof req.query.category === "string" ? req.query.category : undefined;
-      const { listings } = await getHomeFeed(category);
+      const { listings } = await getHomeFeed(parseListingFilters(req.query));
       res.json(listings);
     } catch (error) {
       console.error("Fetch listings error:", error);
@@ -194,7 +214,7 @@ async function startServer() {
   app.post("/api/v1/listings", requireAuth, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const uid = req.user!.uid;
-      const { title, description, price, category } = req.body;
+      const { title, description, price, category, city } = req.body;
       const user = await getUserWithVendor(uid);
 
       if (!user || !user.vendor) {
@@ -204,6 +224,20 @@ async function startServer() {
       const priceNumber = Number(price);
       if (!title || !Number.isFinite(priceNumber) || priceNumber <= 0) {
         return res.status(400).json({ error: "Titre et prix (nombre positif) requis" });
+      }
+
+      // Sent as a JSON string in the multipart body (category-specific
+      // fields from PostView's dynamic form — see src/lib/categoryFields.ts).
+      // Malformed or absent is fine, not an error: not every category has
+      // extra fields, and this must never reject a listing over it.
+      let attributes: Record<string, string | number> | null = null;
+      if (typeof req.body.attributes === "string" && req.body.attributes.trim()) {
+        try {
+          const parsed = JSON.parse(req.body.attributes);
+          if (parsed && typeof parsed === "object") attributes = parsed;
+        } catch {
+          // ignored — attributes stay null
+        }
       }
 
       // In a real app, upload file to GCS/Firebase Storage and get URL.
@@ -221,6 +255,8 @@ async function startServer() {
         image: imageUrl,
         whatsapp: user.vendor.whatsappNumber,
         category: category || null,
+        city: city || null,
+        attributes,
       });
 
       res.json(newListing);

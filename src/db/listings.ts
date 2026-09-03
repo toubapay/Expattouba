@@ -1,6 +1,6 @@
 import { db } from './index.ts';
 import { listings, vendors } from './schema.ts';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { getCurrentPlanForVendor } from './vendorSubscriptions.ts';
 
 export interface FeedListing {
@@ -12,11 +12,22 @@ export interface FeedListing {
   currency: string | null;
   whatsapp: string | null;
   category: string | null;
+  city: string | null;
+  attributes: Record<string, string | number> | null;
+  createdAt: Date | null;
   vendorId: string;
   vendorName: string;
   vendorBadge: string | null;
   featured: boolean;
   priorityRank: number;
+}
+
+export interface ListingFilters {
+  category?: string;
+  city?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  q?: string;
 }
 
 async function withFeaturedFlag(rows: Omit<FeedListing, 'featured' | 'priorityRank'>[]): Promise<FeedListing[]> {
@@ -39,10 +50,14 @@ async function withFeaturedFlag(rows: Omit<FeedListing, 'featured' | 'priorityRa
  * the featured rail — derived at read time, same reasoning as the sister
  * app's discount badge: a plan that lapses must stop featuring the listing
  * on the very next fetch, not whenever something remembers to unset a flag. */
-export async function getHomeFeed(category?: string): Promise<{ featured: FeedListing[]; listings: FeedListing[] }> {
-  const whereClause = category
-    ? and(eq(listings.status, 'ACTIVE'), eq(listings.category, category))
-    : eq(listings.status, 'ACTIVE');
+export async function getHomeFeed(filters: ListingFilters = {}): Promise<{ featured: FeedListing[]; listings: FeedListing[] }> {
+  const { category, city, minPrice, maxPrice, q } = filters;
+  const conditions = [eq(listings.status, 'ACTIVE')];
+  if (category) conditions.push(eq(listings.category, category));
+  if (city) conditions.push(eq(listings.city, city));
+  if (minPrice != null) conditions.push(gte(listings.price, minPrice.toString()));
+  if (maxPrice != null) conditions.push(lte(listings.price, maxPrice.toString()));
+  if (q) conditions.push(or(ilike(listings.title, `%${q}%`), ilike(listings.description, `%${q}%`))!);
 
   const rows = await db
     .select({
@@ -54,13 +69,16 @@ export async function getHomeFeed(category?: string): Promise<{ featured: FeedLi
       currency: listings.currency,
       whatsapp: listings.whatsapp,
       category: listings.category,
+      city: listings.city,
+      attributes: listings.attributes,
+      createdAt: listings.createdAt,
       vendorId: vendors.id,
       vendorName: vendors.boutiqueName,
       vendorBadge: vendors.badgeStatus,
     })
     .from(listings)
     .innerJoin(vendors, eq(listings.vendorId, vendors.id))
-    .where(whereClause)
+    .where(and(...conditions))
     .orderBy(desc(listings.createdAt));
 
   const enriched = await withFeaturedFlag(rows);
@@ -91,6 +109,8 @@ export async function createListingForVendor(data: {
   image: string;
   whatsapp: string | null;
   category: string | null;
+  city: string | null;
+  attributes: Record<string, string | number> | null;
 }) {
   const plan = await getCurrentPlanForVendor(data.vendorId);
   if (plan?.maxListings != null) {
