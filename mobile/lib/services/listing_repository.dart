@@ -57,15 +57,21 @@ class ListingRepository {
     return (result as Map<String, dynamic>)['description']?.toString() ?? '';
   }
 
+  /// phone/pin are required by the server only when the account has no
+  /// phone number yet (Google sign-in) — see server.ts's onboard route.
   Future<void> onboardVendor({
     required String boutiqueName,
     required String whatsappNumber,
     required String address,
+    String? phone,
+    String? pin,
   }) async {
     await api.post('/api/v1/vendors/onboard', body: {
       'boutiqueName': boutiqueName,
       'whatsappNumber': whatsappNumber,
       'address': address,
+      if (phone != null) 'phone': phone,
+      if (pin != null) 'pin': pin,
     });
   }
 }

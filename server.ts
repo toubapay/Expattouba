@@ -6,9 +6,11 @@ import multer from "multer";
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { getOrCreateUser, getUserWithVendor, getOrCreatePhoneUser, ensureSuperAdmin, verifyAdminLogin } from './src/db/users.ts';
 import { db } from './src/db/index.ts';
-import { vendors } from './src/db/schema.ts';
+import { vendors, users } from './src/db/schema.ts';
+import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from './src/lib/jwt.ts';
+import { hashPin } from './src/lib/pin.ts';
 import { checkRateLimit } from './src/lib/rateLimit.ts';
 import { adminRouter } from './src/routes/admin.ts';
 import { chatRouter } from './src/routes/chat.ts';
@@ -152,9 +154,39 @@ async function startServer() {
   app.post("/api/v1/vendors/onboard", requireAuth, async (req: AuthRequest, res) => {
     try {
       const uid = req.user!.uid;
-      const { boutiqueName, whatsappNumber, address } = req.body;
+      const { boutiqueName, whatsappNumber, address, phone, pin } = req.body;
       const user = await getUserWithVendor(uid);
       if (!user) return res.status(404).json({ error: "User not found" });
+
+      // Becoming a vendor is what actually lets an account post an
+      // annonce, so this is where "every account has exactly one phone
+      // number and a PIN on file" gets enforced — not just at signup,
+      // since a Google account arrives with neither. An account that
+      // already has one (the phone/PIN login path always sets both
+      // together, and phone_number is unique at the DB level) skips this
+      // entirely; asking again would be pointless.
+      if (!user.phoneNumber) {
+        if (!phone || !pin || String(pin).length !== 4) {
+          return res.status(400).json({ error: "Numéro de téléphone et code PIN (4 chiffres) requis" });
+        }
+        const existing = await db.select({ id: users.id }).from(users).where(eq(users.phoneNumber, phone)).limit(1);
+        if (existing.length > 0 && existing[0].id !== user.id) {
+          return res.status(409).json({ error: "Ce numéro de téléphone est déjà associé à un autre compte" });
+        }
+        try {
+          await db.update(users).set({ phoneNumber: phone, pin: hashPin(String(pin)) }).where(eq(users.id, user.id));
+        } catch (error: any) {
+          // Defense in depth against the race the check above can't fully
+          // close: two concurrent onboard calls choosing the same brand-new
+          // phone number. The unique index is the real guard; this just
+          // turns its violation into the same friendly message instead of
+          // a raw 500.
+          if (error?.code === '23505') {
+            return res.status(409).json({ error: "Ce numéro de téléphone est déjà associé à un autre compte" });
+          }
+          throw error;
+        }
+      }
 
       const newVendor = await db.insert(vendors).values({
         userId: user.id,
