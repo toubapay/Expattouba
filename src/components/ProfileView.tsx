@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { AnimatePresence } from "motion/react";
-import { Settings, Shield, Award, ChevronRight, LogOut, MessageCircle } from "lucide-react";
+import { Settings, Shield, Award, ChevronRight, LogOut, MessageCircle, Heart } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { ChatInboxView } from "./ChatInboxView";
 import { VendorPlansView } from "./VendorPlansView";
+import { FavoritesView } from "./FavoritesView";
 
 export function ProfileView() {
   const { user, dbUser, logOut } = useAuth();
   const [showMessages, setShowMessages] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
 
   const initials = dbUser?.vendor?.boutiqueName?.substring(0, 2).toUpperCase() || "US";
 
@@ -83,13 +85,25 @@ export function ProfileView() {
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <button
                 onClick={() => setShowMessages(true)}
-                className="w-full flex items-center justify-between p-4 active:bg-gray-50"
+                className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50"
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
                     <MessageCircle className="w-4 h-4" />
                   </div>
                   <span className="font-bold text-sm text-gray-700">Mes messages</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </button>
+              <button
+                onClick={() => setShowFavorites(true)}
+                className="w-full flex items-center justify-between p-4 active:bg-gray-50"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center">
+                    <Heart className="w-4 h-4" />
+                  </div>
+                  <span className="font-bold text-sm text-gray-700">Mes favoris</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </button>
@@ -127,6 +141,7 @@ export function ProfileView() {
       <AnimatePresence>
         {showMessages && <ChatInboxView onBack={() => setShowMessages(false)} />}
         {showPlans && <VendorPlansView onBack={() => setShowPlans(false)} />}
+        {showFavorites && <FavoritesView onBack={() => setShowFavorites(false)} />}
       </AnimatePresence>
     </div>
   );

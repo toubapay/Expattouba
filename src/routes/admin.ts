@@ -188,9 +188,9 @@ adminRouter.get('/categories', async (_req, res) => {
 
 adminRouter.post('/categories', async (req, res) => {
   try {
-    const { name, icon, sortOrder } = req.body;
+    const { name, icon, sortOrder, fieldSet } = req.body;
     if (!name) return res.status(400).json({ error: 'name requis' });
-    res.json(await createCategory({ name, icon, sortOrder }));
+    res.json(await createCategory({ name, icon, sortOrder, fieldSet: fieldSet || null }));
   } catch (error) {
     console.error('Admin create category error:', error);
     res.status(500).json({ error: 'Failed to create category' });

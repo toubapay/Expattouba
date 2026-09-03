@@ -2,11 +2,13 @@ import React, { useEffect, useState, useRef } from "react";
 import { Camera, Image as ImageIcon, Sparkles, Loader2, X, CheckCircle2 } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { motion, AnimatePresence } from "motion/react";
+import { SENEGAL_CITIES, FIELD_SETS, FieldSetKey, summarizeAttributes } from "../lib/categoryFields";
 
 interface Category {
   id: string;
   name: string;
   icon: string;
+  fieldSet: FieldSetKey | null;
 }
 
 export function PostView() {
@@ -15,6 +17,8 @@ export function PostView() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [city, setCity] = useState("");
+  const [attributes, setAttributes] = useState<Record<string, string | number>>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,6 +35,20 @@ export function PostView() {
       .then(setCategories)
       .catch(() => {});
   }, []);
+
+  const fieldSet = categories.find((c) => c.name === category)?.fieldSet || null;
+  const fields = fieldSet ? FIELD_SETS[fieldSet] : [];
+
+  const handleCategoryChange = (value: string) => {
+    setCategory(value);
+    // A vehicle's "mileage" left over after switching to Immobilier would
+    // silently attach to a real-estate listing — clear it, not keep it.
+    setAttributes({});
+  };
+
+  const setAttr = (key: string, value: string) => {
+    setAttributes((prev) => ({ ...prev, [key]: value }));
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,6 +102,10 @@ export function PostView() {
       alert("Titre et prix requis.");
       return;
     }
+    if (!city) {
+      alert("Veuillez choisir une ville.");
+      return;
+    }
     setShowConfirm(true);
   };
 
@@ -95,7 +117,9 @@ export function PostView() {
       formData.append("title", title);
       formData.append("price", price);
       formData.append("description", description);
+      formData.append("city", city);
       if (category) formData.append("category", category);
+      if (fieldSet) formData.append("attributes", JSON.stringify(attributes));
       if (imageFile) {
         formData.append("image", imageFile);
       }
@@ -116,6 +140,8 @@ export function PostView() {
         setPrice("");
         setDescription("");
         setCategory("");
+        setCity("");
+        setAttributes({});
         setImageFile(null);
         setImagePreview(null);
       } else {
@@ -195,7 +221,7 @@ export function PostView() {
               <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">Catégorie</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Choisir une catégorie...</option>
@@ -206,6 +232,52 @@ export function PostView() {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">Ville</label>
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="">Choisir une ville...</option>
+                {SENEGAL_CITIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {fields.length > 0 && (
+              <div className="space-y-4 bg-orange-50/50 border border-orange-100 rounded-xl p-4">
+                <p className="text-xs font-bold text-orange-700 uppercase">Détails {category}</p>
+                {fields.map((f) => (
+                  <div key={f.key}>
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">
+                      {f.label}{f.unit ? ` (${f.unit})` : ""}
+                    </label>
+                    {f.type === "select" ? (
+                      <select
+                        value={attributes[f.key] ?? ""}
+                        onChange={(e) => setAttr(f.key, e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      >
+                        <option value="">Choisir...</option>
+                        {f.options?.map((o) => (
+                          <option key={o} value={o}>{o}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type === "number" ? "number" : "text"}
+                        value={attributes[f.key] ?? ""}
+                        onChange={(e) => setAttr(f.key, e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">Prix (FCFA)</label>
@@ -287,6 +359,9 @@ export function PostView() {
                   <h3 className="font-bold text-gray-900 line-clamp-2">{title}</h3>
                   <p className="text-orange-600 font-black mt-1">
                     {Number(price).toLocaleString('fr-FR')} FCFA
+                  </p>
+                  <p className="text-xs text-gray-500 font-medium mt-1">
+                    {[city, summarizeAttributes(attributes)].filter(Boolean).join(' • ')}
                   </p>
                 </div>
               </div>

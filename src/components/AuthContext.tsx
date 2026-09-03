@@ -12,6 +12,12 @@ interface AuthContextType {
   logOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   getToken: () => Promise<string | null>;
+  // Loaded once on login/sync, kept as ids only (not full listings) so
+  // every heart icon on the page can check membership without its own
+  // fetch — the full listing details live wherever they're already being
+  // rendered (home feed, product detail, FavoritesView).
+  favoriteIds: Set<string>;
+  toggleFavorite: (listingId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,6 +30,8 @@ const AuthContext = createContext<AuthContextType>({
   logOut: async () => {},
   refreshUser: async () => {},
   getToken: async () => null,
+  favoriteIds: new Set(),
+  toggleFavorite: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -33,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [dbUser, setDbUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [customToken, setCustomToken] = useState<string | null>(localStorage.getItem('phoneToken'));
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const getToken = async (): Promise<string | null> => {
     if (customToken) return customToken;
@@ -55,10 +64,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchFavoriteIds = async (token: string) => {
+    try {
+      const res = await fetch('/api/v1/favorites/ids', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) setFavoriteIds(new Set(await res.json()));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const refreshUser = async () => {
     const token = await getToken();
     if (token) {
       await fetchDbUser(token);
+      await fetchFavoriteIds(token);
     }
   };
 
@@ -69,8 +90,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (u) {
         const t = await u.getIdToken();
         await fetchDbUser(t);
+        await fetchFavoriteIds(t);
       } else {
         setDbUser(null);
+        setFavoriteIds(new Set());
       }
       setLoading(false);
     });
@@ -78,11 +101,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (customToken) {
       // Load user with custom token
       setUser({ isPhone: true });
-      fetchDbUser(customToken).then(() => setLoading(false));
+      Promise.all([fetchDbUser(customToken), fetchFavoriteIds(customToken)]).then(() => setLoading(false));
     }
 
     return () => unsubscribe();
   }, [customToken]);
+
+  // Optimistic: the heart icon flips immediately, then this reconciles
+  // with the server. A failed request rolls the local Set back rather
+  // than leaving the UI claiming a state the database doesn't have.
+  const toggleFavorite = async (listingId: string) => {
+    const wasFavorited = favoriteIds.has(listingId);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (wasFavorited) next.delete(listingId); else next.add(listingId);
+      return next;
+    });
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not signed in');
+      const res = wasFavorited
+        ? await fetch(`/api/v1/favorites/${listingId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+        : await fetch('/api/v1/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ listingId }),
+          });
+      if (!res.ok) throw new Error('Favorite request failed');
+    } catch (e) {
+      console.error(e);
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (wasFavorited) next.add(listingId); else next.delete(listingId);
+        return next;
+      });
+    }
+  };
 
   const signInWithGoogle = async () => {
     try {
@@ -129,13 +183,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCustomToken(null);
       setUser(null);
       setDbUser(null);
+      setFavoriteIds(new Set());
     } else {
       await signOut(auth);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, dbUser, loading, signInWithGoogle, signInWithPhone, signInWithAdminCredentials, logOut, refreshUser, getToken }}>
+    <AuthContext.Provider value={{ user, dbUser, loading, signInWithGoogle, signInWithPhone, signInWithAdminCredentials, logOut, refreshUser, getToken, favoriteIds, toggleFavorite }}>
       {children}
     </AuthContext.Provider>
   );
