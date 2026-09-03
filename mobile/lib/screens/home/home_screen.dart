@@ -532,12 +532,16 @@ class _FavoriteButton extends StatelessWidget {
 /// action a card can support on its own.
 class _QuickContactButtons extends StatelessWidget {
   final String? whatsapp;
-  const _QuickContactButtons({required this.whatsapp});
+  final String? title;
+  const _QuickContactButtons({required this.whatsapp, this.title});
 
   @override
   Widget build(BuildContext context) {
     final phone = whatsapp;
     if (phone == null) return const SizedBox.shrink();
+    final text = Uri.encodeComponent(
+      title != null ? 'Bonjour, je suis intéressé(e) par votre annonce "$title".' : 'Bonjour, je suis intéressé(e) par votre produit.',
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -547,7 +551,10 @@ class _QuickContactButtons extends StatelessWidget {
           Icons.chat_bubble_rounded,
           AppColors.whatsapp,
           Colors.white,
-          () => launchUrl(Uri.parse('https://wa.me/${phone.replaceAll(RegExp(r'[^0-9]'), '')}'), mode: LaunchMode.externalApplication),
+          () => launchUrl(
+            Uri.parse('https://wa.me/${phone.replaceAll(RegExp(r'[^0-9]'), '')}?text=$text'),
+            mode: LaunchMode.externalApplication,
+          ),
         ),
       ],
     );
@@ -652,7 +659,7 @@ class _ListingCard extends StatelessWidget {
                             style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w900, fontSize: 15),
                           ),
                         ),
-                        _QuickContactButtons(whatsapp: listing.whatsapp),
+                        _QuickContactButtons(whatsapp: listing.whatsapp, title: listing.title),
                       ],
                     ),
                   ],
@@ -731,7 +738,7 @@ class _ListingCard extends StatelessWidget {
                             style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w900),
                           ),
                         ),
-                        _QuickContactButtons(whatsapp: listing.whatsapp),
+                        _QuickContactButtons(whatsapp: listing.whatsapp, title: listing.title),
                       ],
                     ),
                   ],

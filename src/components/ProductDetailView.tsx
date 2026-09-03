@@ -205,7 +205,7 @@ export function ProductDetailView({ listing, onBack, onPurchased, walletPurchase
                   <span className="text-[11px] font-bold">Appeler</span>
                 </a>
                 <a
-                  href={`https://wa.me/${listing.whatsapp.replace(/[^0-9]/g, "")}`}
+                  href={`https://wa.me/${listing.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${listing.title}".`)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex flex-col items-center justify-center space-y-1 bg-[#25D366] rounded-xl py-3 text-white"

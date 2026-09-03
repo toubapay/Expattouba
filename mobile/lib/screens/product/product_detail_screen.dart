@@ -45,7 +45,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _whatsapp() async {
     final phone = widget.listing.whatsapp?.replaceAll(RegExp(r'[^0-9]'), '');
     if (phone == null) return;
-    await launchUrl(Uri.parse('https://wa.me/$phone'), mode: LaunchMode.externalApplication);
+    final text = Uri.encodeComponent('Bonjour, je suis intéressé(e) par votre annonce "${widget.listing.title}".');
+    await launchUrl(Uri.parse('https://wa.me/$phone?text=$text'), mode: LaunchMode.externalApplication);
   }
 
   Future<void> _openChat() async {

@@ -50,11 +50,14 @@ function VedetteBadge({ className }: { className?: string }) {
  * buyer doesn't have to open the listing first to reach the seller.
  * Discuter stays detail-page-only: it needs a signed-in chat thread,
  * which isn't a one-tap action a card can support on its own. */
-function QuickContactButtons({ whatsapp, size = "sm" }: { whatsapp: string | null | undefined; size?: "sm" | "md" }) {
+function QuickContactButtons({ whatsapp, title, size = "sm" }: { whatsapp: string | null | undefined; title?: string; size?: "sm" | "md" }) {
   if (!whatsapp) return null;
   const dim = size === "sm" ? "w-7 h-7" : "w-9 h-9";
   const icon = size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
   const stop = (e: MouseEvent) => e.stopPropagation();
+  const prefill = title
+    ? `Bonjour, je suis intéressé(e) par votre annonce "${title}".`
+    : "Bonjour, je suis intéressé(e) par votre produit.";
   return (
     <div className="flex items-center gap-1.5" onClick={stop}>
       <a
@@ -66,7 +69,7 @@ function QuickContactButtons({ whatsapp, size = "sm" }: { whatsapp: string | nul
         <Phone className={icon} />
       </a>
       <a
-        href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}`}
+        href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(prefill)}`}
         target="_blank"
         rel="noreferrer"
         onClick={stop}
@@ -375,7 +378,7 @@ export function HomeView() {
                             <span className="font-black text-orange-600 text-base sm:text-lg whitespace-nowrap">
                               {Number(listing.price).toLocaleString("fr-FR")} {listing.currency}
                             </span>
-                            <QuickContactButtons whatsapp={listing.whatsapp} size="sm" />
+                            <QuickContactButtons whatsapp={listing.whatsapp} title={listing.title} size="sm" />
                           </div>
                         </div>
                       </motion.div>
