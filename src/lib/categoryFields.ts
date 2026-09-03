@@ -74,8 +74,10 @@ export const FIELD_SETS: Record<FieldSetKey, FieldDef[]> = {
  * component can render whatever's actually present in listings.attributes
  * without first knowing (or being passed) which category/field-set the
  * listing belongs to. Two field sets never share a key, so this is safe. */
+const FIELD_ORDER: FieldDef[] = Object.values(FIELD_SETS).flat();
+
 export const ALL_FIELDS: Record<string, FieldDef> = Object.fromEntries(
-  Object.values(FIELD_SETS).flat().map((f) => [f.key, f])
+  FIELD_ORDER.map((f) => [f.key, f])
 );
 
 function formatValue(def: FieldDef, value: string | number): string {
@@ -86,30 +88,37 @@ function formatValue(def: FieldDef, value: string | number): string {
 }
 
 /** A short one-line summary for a listing card — e.g.
- * "Vente • 3 chambres • 120 m²" or "2018 • 45 000 km • Automatique".
+ * "Location • Appartement • 120 m²" or "2018 • Toyota • Automatique".
  * Picks the first few attributes present, in field-set order, rather than
- * every one, since a card has room for a line, not a spec sheet. */
+ * every one, since a card has room for a line, not a spec sheet.
+ *
+ * Iterates FIELD_ORDER rather than Object.keys(attributes): Postgres
+ * jsonb does not preserve the key order a row was written with, so
+ * reading straight off the object would summarize a listing with
+ * whatever order Postgres happened to return that day — e.g. "3 • 2"
+ * (bedrooms, bathrooms) instead of the far more useful "Location •
+ * Appartement" the field-set order was designed to lead with. */
 export function summarizeAttributes(attributes: Record<string, string | number> | null | undefined, max = 3): string {
   if (!attributes) return '';
   const parts: string[] = [];
-  for (const key of Object.keys(attributes)) {
-    const def = ALL_FIELDS[key];
-    const value = attributes[key];
-    if (!def || value === '' || value == null) continue;
+  for (const def of FIELD_ORDER) {
+    const value = attributes[def.key];
+    if (value === undefined || value === '' || value == null) continue;
     parts.push(formatValue(def, value));
     if (parts.length >= max) break;
   }
   return parts.join(' • ');
 }
 
-/** Full label:value rows for the product detail page. */
+/** Full label:value rows for the product detail page — same field-set
+ * ordering as summarizeAttributes, for the same reason. */
 export function attributeRows(attributes: Record<string, string | number> | null | undefined): { label: string; value: string }[] {
   if (!attributes) return [];
-  return Object.entries(attributes)
-    .filter(([, value]) => value !== '' && value != null)
-    .map(([key, value]) => {
-      const def = ALL_FIELDS[key];
-      return def ? { label: def.label, value: formatValue(def, value) } : null;
-    })
-    .filter((row): row is { label: string; value: string } => row !== null);
+  const rows: { label: string; value: string }[] = [];
+  for (const def of FIELD_ORDER) {
+    const value = attributes[def.key];
+    if (value === undefined || value === '' || value == null) continue;
+    rows.push({ label: def.label, value: formatValue(def, value) });
+  }
+  return rows;
 }

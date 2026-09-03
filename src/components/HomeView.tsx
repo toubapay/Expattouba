@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, MouseEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Search, Bell, MapPin, Loader2, ChevronRight, ChevronDown, SlidersHorizontal, Heart, X } from "lucide-react";
+import { Search, Bell, MapPin, Loader2, ChevronDown, SlidersHorizontal, Heart, X, Star, Phone, MessageCircle, Clock } from "lucide-react";
 import { ProductDetailView } from "./ProductDetailView";
 import { useAuth } from "./AuthContext";
 import { SENEGAL_CITIES, summarizeAttributes } from "../lib/categoryFields";
+import { formatRelativeTime } from "../lib/formatDate";
 
 interface Category {
   id: string;
@@ -29,6 +30,52 @@ function FavoriteButton({ listingId, className }: { listingId: string; className
     >
       <Heart className={`w-4 h-4 ${active ? "fill-red-500 text-red-500" : "text-gray-700"}`} />
     </button>
+  );
+}
+
+/** Top-left badge on any card whose vendor plan currently makes it
+ * featured — not just inside the separate featured rail, so the same
+ * signal is visible wherever the listing happens to show up. */
+function VedetteBadge({ className }: { className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-0.5 bg-orange-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ${className || ""}`}>
+      <Star className="w-2.5 h-2.5 fill-white" />
+      VEDETTE
+    </span>
+  );
+}
+
+/** Appeler/WhatsApp, reachable straight from the card — the same
+ * tel:/wa.me links ProductDetailView already uses, just relocated so a
+ * buyer doesn't have to open the listing first to reach the seller.
+ * Discuter stays detail-page-only: it needs a signed-in chat thread,
+ * which isn't a one-tap action a card can support on its own. */
+function QuickContactButtons({ whatsapp, size = "sm" }: { whatsapp: string | null | undefined; size?: "sm" | "md" }) {
+  if (!whatsapp) return null;
+  const dim = size === "sm" ? "w-7 h-7" : "w-9 h-9";
+  const icon = size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
+  const stop = (e: MouseEvent) => e.stopPropagation();
+  return (
+    <div className="flex items-center gap-1.5" onClick={stop}>
+      <a
+        href={`tel:${whatsapp}`}
+        onClick={stop}
+        className={`${dim} flex items-center justify-center bg-gray-100 text-gray-700 rounded-full`}
+        title="Appeler"
+      >
+        <Phone className={icon} />
+      </a>
+      <a
+        href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}`}
+        target="_blank"
+        rel="noreferrer"
+        onClick={stop}
+        className={`${dim} flex items-center justify-center bg-[#25D366] text-white rounded-full`}
+        title="WhatsApp"
+      >
+        <MessageCircle className={icon} />
+      </a>
+    </div>
   );
 }
 
@@ -161,18 +208,18 @@ export function HomeView() {
             {/* Search + filters */}
             <div className="flex items-center space-x-2 md:max-w-md">
               <div className="relative flex-1">
-                <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Rechercher sur SeneMarket..."
-                  className="w-full bg-gray-100 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-100 transition-shadow"
+                  className="w-full bg-gray-100 rounded-full py-3 pl-11 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-100 transition-shadow"
                 />
               </div>
               <button
                 onClick={() => { setMinPrice(appliedPriceRange.min); setMaxPrice(appliedPriceRange.max); setShowFilters(true); }}
-                className={`relative p-3 rounded-xl border ${filtersActive ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-gray-100 border-transparent text-gray-600"}`}
+                className={`relative p-3 rounded-full flex-shrink-0 ${filtersActive ? "bg-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
               >
                 <SlidersHorizontal className="w-4 h-4" />
                 {filtersActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-600 rounded-full border-2 border-white" />}
@@ -227,9 +274,7 @@ export function HomeView() {
                     >
                       <div className="aspect-square bg-gray-100 relative">
                         <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" />
-                        <span className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                          VEDETTE
-                        </span>
+                        <VedetteBadge className="absolute top-2 left-2" />
                         <FavoriteButton listingId={listing.id} className="absolute top-2 right-2 !p-1.5" />
                       </div>
                       <div className="p-2">
@@ -237,6 +282,12 @@ export function HomeView() {
                         <p className="text-orange-600 font-black text-xs">
                           {Number(listing.price).toLocaleString("fr-FR")} {listing.currency}
                         </p>
+                        {listing.city && (
+                          <p className="flex items-center gap-0.5 text-[10px] text-gray-400 font-medium mt-0.5">
+                            <MapPin className="w-2.5 h-2.5" />
+                            {listing.city}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -252,66 +303,84 @@ export function HomeView() {
               {!feed || feed.listings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 font-medium">Aucune annonce pour le moment.</div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {feed.listings.map((listing) => (
-                    <motion.div
-                      key={listing.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
-                      onClick={() => setSelectedListing(listing)}
-                    >
-                      {/* Vendor Header */}
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-tr from-orange-400 to-pink-500 rounded-full p-[2px]">
-                            <div className="w-full h-full bg-white rounded-full flex items-center justify-center border border-gray-100">
-                              <span className="text-xs font-bold">{listing.vendorName?.charAt(0) || "V"}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                  {feed.listings.map((listing) => {
+                    const chip = summarizeAttributes(listing.attributes, 2);
+                    return (
+                      <motion.div
+                        key={listing.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex flex-row sm:flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                        onClick={() => setSelectedListing(listing)}
+                      >
+                        {/* Vendor header — grid layout only; the compact mobile
+                            row drops it to prioritize price/location/contact,
+                            same trade a real classifieds list makes. */}
+                        <div className="hidden sm:flex px-4 py-3 items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-tr from-orange-400 to-pink-500 rounded-full p-[2px]">
+                              <div className="w-full h-full bg-white rounded-full flex items-center justify-center border border-gray-100">
+                                <span className="text-xs font-bold">{listing.vendorName?.charAt(0) || "V"}</span>
+                              </div>
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-sm">{listing.vendorName}</h3>
+                              <span className="text-[10px] text-gray-500 font-medium">Vendeur vérifié</span>
                             </div>
                           </div>
-                          <div>
-                            <h3 className="font-bold text-sm">{listing.vendorName}</h3>
-                            <span className="text-[10px] text-gray-500 font-medium">Vendeur vérifié</span>
+                          {listing.vendorBadge === "GOLD" && (
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[10px] font-bold rounded-md">GOLD</span>
+                          )}
+                        </div>
+
+                        {/* Image */}
+                        <div className="relative w-28 h-28 sm:w-full sm:h-auto sm:aspect-[4/5] flex-shrink-0 bg-gray-100">
+                          <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" />
+                          {listing.featured && <VedetteBadge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 !text-[9px] sm:!text-[10px]" />}
+                          <FavoriteButton listingId={listing.id} className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 !p-1.5" />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 p-3 sm:p-4 flex flex-col">
+                          <div className="flex justify-between items-start gap-2">
+                            <h3 className="font-bold text-sm sm:text-lg leading-tight line-clamp-2 sm:line-clamp-1">{listing.title}</h3>
+                          </div>
+
+                          {chip && (
+                            <span className="inline-block w-fit mt-1.5 bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              {chip}
+                            </span>
+                          )}
+
+                          <div className="flex items-center gap-2 text-[11px] text-gray-400 font-medium mt-1.5">
+                            {listing.city && (
+                              <span className="flex items-center gap-0.5">
+                                <MapPin className="w-3 h-3" />
+                                {listing.city}
+                              </span>
+                            )}
+                            {listing.createdAt && (
+                              <span className="flex items-center gap-0.5">
+                                <Clock className="w-3 h-3" />
+                                {formatRelativeTime(listing.createdAt)}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="hidden sm:block text-gray-600 text-sm line-clamp-2 mt-2">{listing.description}</p>
+
+                          <div className="flex-1" />
+                          <div className="flex items-center justify-between mt-2 sm:mt-3">
+                            <span className="font-black text-orange-600 text-base sm:text-lg whitespace-nowrap">
+                              {Number(listing.price).toLocaleString("fr-FR")} {listing.currency}
+                            </span>
+                            <QuickContactButtons whatsapp={listing.whatsapp} size="sm" />
                           </div>
                         </div>
-                        {listing.vendorBadge === "GOLD" && (
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[10px] font-bold rounded-md">GOLD</span>
-                        )}
-                      </div>
-
-                      {/* Image */}
-                      <div className="aspect-[4/5] bg-gray-100 relative">
-                        <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" />
-                        <FavoriteButton listingId={listing.id} className="absolute top-2 right-2" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-bold text-lg leading-tight">{listing.title}</h3>
-                          <span className="font-black text-orange-600 text-lg whitespace-nowrap ml-2">
-                            {Number(listing.price).toLocaleString("fr-FR")} {listing.currency}
-                          </span>
-                        </div>
-                        {(listing.city || listing.attributes) && (
-                          <p className="text-xs text-gray-400 font-medium mb-1">
-                            {[listing.city, summarizeAttributes(listing.attributes, 2)].filter(Boolean).join(" • ")}
-                          </p>
-                        )}
-                        <p className="text-gray-600 text-sm line-clamp-2">{listing.description}</p>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedListing(listing);
-                          }}
-                          className="mt-3 flex items-center space-x-1 text-orange-600 font-bold text-sm"
-                        >
-                          <span>Voir plus</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
               </div>

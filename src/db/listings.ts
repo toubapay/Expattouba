@@ -14,6 +14,7 @@ export interface FeedListing {
   category: string | null;
   city: string | null;
   attributes: Record<string, string | number> | null;
+  createdAt: Date | null;
   vendorId: string;
   vendorName: string;
   vendorBadge: string | null;
@@ -70,6 +71,7 @@ export async function getHomeFeed(filters: ListingFilters = {}): Promise<{ featu
       category: listings.category,
       city: listings.city,
       attributes: listings.attributes,
+      createdAt: listings.createdAt,
       vendorId: vendors.id,
       vendorName: vendors.boutiqueName,
       vendorBadge: vendors.badgeStatus,

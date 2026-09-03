@@ -40,6 +40,7 @@ export async function listFavoritesForUser(userId: string): Promise<Omit<FeedLis
       category: listings.category,
       city: listings.city,
       attributes: listings.attributes,
+      createdAt: listings.createdAt,
       vendorId: vendors.id,
       vendorName: vendors.boutiqueName,
       vendorBadge: vendors.badgeStatus,

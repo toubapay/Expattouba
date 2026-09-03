@@ -4,6 +4,7 @@ import { ArrowLeft, Share2, MapPin, ShieldCheck, Flag, Phone, MessageCircle, Hea
 import { useAuth } from "./AuthContext";
 import { ChatPanel } from "./ChatPanel";
 import { attributeRows } from "../lib/categoryFields";
+import { formatRelativeTime } from "../lib/formatDate";
 
 interface ProductDetailProps {
   listing: any;
@@ -137,8 +138,12 @@ export function ProductDetailView({ listing, onBack, onPurchased, walletPurchase
           <div className="flex items-center space-x-2 text-sm text-gray-500 mb-6 font-medium">
             <MapPin className="w-4 h-4" />
             <span>{listing.city ? `${listing.city}, Sénégal` : "Sénégal"}</span>
-            <span>•</span>
-            <span>Publié il y a 2h</span>
+            {listing.createdAt && (
+              <>
+                <span>•</span>
+                <span>Publié {formatRelativeTime(listing.createdAt)}</span>
+              </>
+            )}
           </div>
 
           {rows.length > 0 && (
