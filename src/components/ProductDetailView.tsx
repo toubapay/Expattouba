@@ -119,10 +119,12 @@ export function ProductDetailView({ listing, onBack, onPurchased, walletPurchase
       </div>
 
       <div className="flex-1 overflow-y-auto pb-24">
-        {/* Image */}
-        <div className="w-full aspect-square bg-gray-100 relative">
-          <img 
-            src={listing.image} 
+        {/* Image — square on mobile (full-bleed edge to edge), a shorter
+            16:9 band on desktop so the title/price/vendor info is visible
+            without scrolling inside the fixed-height md:h-[85vh] card. */}
+        <div className="w-full aspect-square md:aspect-video bg-gray-100 relative">
+          <img
+            src={listing.image}
             alt={listing.title}
             className="w-full h-full object-cover"
           />
