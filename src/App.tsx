@@ -20,6 +20,15 @@ function AppContent() {
   const { user, dbUser, loading, getToken, refreshUser } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
+  // Lifted out of HomeView so TopNav's "Catégories" dropdown (desktop-only,
+  // visible from any tab) can jump straight into a filtered Home feed —
+  // the icon rail inside HomeView drives the exact same state.
+  const [homeCategory, setHomeCategory] = useState<string | null>(null);
+  const selectHomeCategory = (name: string) => {
+    setHomeCategory((current) => (current === name ? null : name));
+  };
+  const clearHomeCategory = () => setHomeCategory(null);
+
   // Paydunya's hosted checkout redirects back here (return_url/cancel_url
   // set in the vendor plans checkout call) rather than into a specific
   // in-app route, since it's a full-page redirect to a different origin
@@ -95,7 +104,14 @@ function AppContent() {
         </div>
       ) : dbUser && !dbUser.vendor && activeTab === 'post' ? (
         <>
-          <TopNav activeTab={activeTab} onTabChange={handleTabChange} />
+          <TopNav
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            activeCategory={homeCategory}
+            onSelectCategory={(name) => { setActiveTab("home"); selectHomeCategory(name); }}
+            onClearCategory={clearHomeCategory}
+            onRequestAuth={() => setShowAuth(true)}
+          />
           <main className="flex-1 overflow-y-auto scrollbar-hide">
             <VendorOnboarding />
           </main>
@@ -103,9 +119,16 @@ function AppContent() {
         </>
       ) : (
         <>
-          <TopNav activeTab={activeTab} onTabChange={handleTabChange} />
+          <TopNav
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            activeCategory={homeCategory}
+            onSelectCategory={(name) => { setActiveTab("home"); selectHomeCategory(name); }}
+            onClearCategory={clearHomeCategory}
+            onRequestAuth={() => setShowAuth(true)}
+          />
           <main className="flex-1 overflow-y-auto scrollbar-hide">
-            {activeTab === "home" && <HomeView />}
+            {activeTab === "home" && <HomeView activeCategory={homeCategory} onSelectCategory={selectHomeCategory} />}
             {activeTab === "post" && <PostView />}
             {activeTab === "wallet" && <WalletView />}
             {activeTab === "profile" && <ProfileView />}

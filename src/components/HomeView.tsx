@@ -5,12 +5,7 @@ import { ProductDetailView } from "./ProductDetailView";
 import { useAuth } from "./AuthContext";
 import { SENEGAL_CITIES, summarizeAttributes } from "../lib/categoryFields";
 import { formatRelativeTime } from "../lib/formatDate";
-
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
-}
+import type { Category } from "../types";
 
 /** A small heart button, stopping the click from also opening the
  * listing's own onClick (the card behind it) — used on both the grid and
@@ -89,10 +84,17 @@ interface HomeFeed {
   walletPurchaseEnabled: boolean;
 }
 
-export function HomeView() {
+interface HomeViewProps {
+  // Lifted to App.tsx so the "Catégories" dropdown in TopNav (desktop) can
+  // jump straight into a filtered feed instead of only the icon rail below
+  // being able to change it.
+  activeCategory: string | null;
+  onSelectCategory: (name: string) => void;
+}
+
+export function HomeView({ activeCategory, onSelectCategory }: HomeViewProps) {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
 
@@ -147,10 +149,6 @@ export function HomeView() {
   useEffect(() => {
     fetchHome({ category: activeCategory, city, q: search, minPrice: appliedPriceRange.min, maxPrice: appliedPriceRange.max });
   }, [activeCategory, city, search, appliedPriceRange]);
-
-  const selectCategory = (id: string) => {
-    setActiveCategory((current) => (current === id ? null : id));
-  };
 
   const applyFilters = () => {
     setAppliedPriceRange({ min: minPrice, max: maxPrice });
@@ -221,7 +219,7 @@ export function HomeView() {
             {categories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => selectCategory(cat.name)}
+                onClick={() => onSelectCategory(cat.name)}
                 className="flex flex-col items-center space-y-2 min-w-[72px]"
               >
                 <div
@@ -314,7 +312,12 @@ export function HomeView() {
               {!feed || feed.listings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 font-medium">Aucune annonce pour le moment.</div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                // auto-fill instead of fixed sm/lg/xl breakpoints — the number
+                // of columns adjusts continuously to whatever width fits a
+                // 220px card, the way expat-dakar.com's grid does, rather than
+                // jumping at three hardcoded widths. Mobile (below sm) stays a
+                // single column of the horizontal-row card, unaffected.
+                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 sm:gap-6">
                   {feed.listings.map((listing) => {
                     const chip = summarizeAttributes(listing.attributes, 2);
                     return (
@@ -346,7 +349,7 @@ export function HomeView() {
                         </div>
 
                         {/* Image */}
-                        <div className="relative w-28 h-28 sm:w-full sm:h-auto sm:aspect-[4/5] flex-shrink-0 bg-gray-100">
+                        <div className="relative w-28 h-28 sm:w-full sm:h-auto sm:aspect-[4/3] flex-shrink-0 bg-gray-100">
                           <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" />
                           {listing.featured && <VedetteBadge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 !text-[9px] sm:!text-[10px]" />}
                           <FavoriteButton listingId={listing.id} className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 !p-1.5" />
@@ -378,8 +381,6 @@ export function HomeView() {
                               </span>
                             )}
                           </div>
-
-                          <p className="hidden sm:block text-gray-600 text-sm line-clamp-2 mt-2">{listing.description}</p>
 
                           <div className="flex-1" />
                           <div className="flex items-center justify-between mt-2 sm:mt-3">
