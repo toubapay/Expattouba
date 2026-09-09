@@ -169,10 +169,12 @@ export function HomeView() {
   return (
     <>
       <div className="min-h-full">
-        {/* Header */}
+        {/* Header — just identity + notifications, kept sticky (mirrors
+            expat-dakar.com's persistent top bar); categories and search
+            scroll away below it instead of competing for header space. */}
         <div className="bg-white px-4 md:px-8 pt-12 md:pt-6 pb-4 sticky top-0 z-40 border-b border-gray-50">
           <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center">
               <div className="relative">
                 <button
                   onClick={() => setShowCityMenu((v) => !v)}
@@ -207,32 +209,12 @@ export function HomeView() {
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
               </button>
             </div>
-
-            {/* Search + filters */}
-            <div className="flex items-center space-x-2 md:max-w-md">
-              <div className="relative flex-1">
-                <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Rechercher sur SeneMarket..."
-                  className="w-full bg-gray-100 rounded-full py-3 pl-11 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-100 transition-shadow"
-                />
-              </div>
-              <button
-                onClick={() => { setMinPrice(appliedPriceRange.min); setMaxPrice(appliedPriceRange.max); setShowFilters(true); }}
-                className={`relative p-3 rounded-full flex-shrink-0 ${filtersActive ? "bg-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                {filtersActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-600 rounded-full border-2 border-white" />}
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Categories */}
-        <div className="px-4 md:px-8 py-6">
+        {/* Categories — same order as expat-dakar.com: category rail first,
+            search below it. */}
+        <div className="px-4 md:px-8 pt-6">
           <div className="max-w-6xl mx-auto">
           <h2 className="text-lg font-bold mb-4 text-gray-900">Catégories</h2>
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide md:flex-wrap md:justify-center md:overflow-visible">
@@ -255,6 +237,32 @@ export function HomeView() {
               </button>
             ))}
           </div>
+          </div>
+        </div>
+
+        {/* Search + filters — centered as a unit at desktop widths instead
+            of hugging the left edge of the max-w-6xl column. */}
+        <div className="px-4 md:px-8 py-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center space-x-2 md:max-w-md md:mx-auto">
+              <div className="relative flex-1">
+                <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Rechercher sur SeneMarket..."
+                  className="w-full bg-gray-100 rounded-full py-3 pl-11 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-100 transition-shadow"
+                />
+              </div>
+              <button
+                onClick={() => { setMinPrice(appliedPriceRange.min); setMaxPrice(appliedPriceRange.max); setShowFilters(true); }}
+                className={`relative p-3 rounded-full flex-shrink-0 ${filtersActive ? "bg-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                {filtersActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-600 rounded-full border-2 border-white" />}
+              </button>
+            </div>
           </div>
         </div>
 
