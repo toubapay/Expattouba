@@ -3,11 +3,19 @@ import { vendorPlans } from './schema.ts';
 import { asc, eq } from 'drizzle-orm';
 
 // A vendor with no active subscription still needs somewhere to land, so a
-// free tier is seeded once — 3 active listings, no featured placement — the
+// free tier is seeded once — 10 active listings, no featured placement — the
 // same way seedCategories() seeds the category rail. Not a fabricated
 // benefit: it's the plan an admin would otherwise have to create by hand
 // before the first vendor could post anything.
-const FREE_PLAN_NAME = 'Gratuit';
+//
+// Three tiers, matching how the app talks about them everywhere else:
+// Régulier (free), VIP (paid, more listings), and Vedette (paid, unlimited
+// listings + the same "VEDETTE ⭐" placement/badge the home feed already
+// shows for a featured listing — named to match that badge on purpose,
+// not "Featured", so a vendor who buys this plan and a shopper who sees
+// the badge on the listing are looking at the same word for the same
+// thing).
+const FREE_PLAN_NAME = 'Régulier';
 
 export async function seedVendorPlans() {
   const existing = await db.select({ id: vendorPlans.id }).from(vendorPlans).limit(1);
@@ -17,14 +25,14 @@ export async function seedVendorPlans() {
       name: FREE_PLAN_NAME,
       priceFcfa: 0,
       durationDays: 36500, // effectively permanent; admins can still edit/retire it
-      maxListings: 3,
+      maxListings: 10,
       featuredHome: false,
       priorityRank: 100,
       commissionPercent: null,
       feeFcfa: null,
     },
     {
-      name: 'Pro',
+      name: 'VIP',
       priceFcfa: 5000,
       durationDays: 30,
       maxListings: 30,
@@ -34,7 +42,7 @@ export async function seedVendorPlans() {
       feeFcfa: null,
     },
     {
-      name: 'Premium',
+      name: 'Vedette',
       priceFcfa: 15000,
       durationDays: 30,
       maxListings: null,

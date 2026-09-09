@@ -85,6 +85,11 @@ class ApiClient {
     return _decode(res);
   }
 
+  Future<dynamic> delete(String path) async {
+    final res = await http.delete(ApiConfig.url(path), headers: await _headers());
+    return _decode(res);
+  }
+
   /// For the two multipart endpoints (POST /api/v1/listings,
   /// POST /api/ai/generate). Takes raw bytes rather than a file path —
   /// XFile.readAsBytes() works the same on web and native, whereas a

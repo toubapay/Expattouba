@@ -5,12 +5,7 @@ import { ProductDetailView } from "./ProductDetailView";
 import { useAuth } from "./AuthContext";
 import { SENEGAL_CITIES, summarizeAttributes } from "../lib/categoryFields";
 import { formatRelativeTime } from "../lib/formatDate";
-
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
-}
+import type { Category } from "../types";
 
 /** A small heart button, stopping the click from also opening the
  * listing's own onClick (the card behind it) — used on both the grid and
@@ -50,11 +45,14 @@ function VedetteBadge({ className }: { className?: string }) {
  * buyer doesn't have to open the listing first to reach the seller.
  * Discuter stays detail-page-only: it needs a signed-in chat thread,
  * which isn't a one-tap action a card can support on its own. */
-function QuickContactButtons({ whatsapp, size = "sm" }: { whatsapp: string | null | undefined; size?: "sm" | "md" }) {
+function QuickContactButtons({ whatsapp, title, size = "sm" }: { whatsapp: string | null | undefined; title?: string; size?: "sm" | "md" }) {
   if (!whatsapp) return null;
   const dim = size === "sm" ? "w-7 h-7" : "w-9 h-9";
   const icon = size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
   const stop = (e: MouseEvent) => e.stopPropagation();
+  const prefill = title
+    ? `Bonjour, je suis intéressé(e) par votre annonce "${title}".`
+    : "Bonjour, je suis intéressé(e) par votre produit.";
   return (
     <div className="flex items-center gap-1.5" onClick={stop}>
       <a
@@ -66,7 +64,7 @@ function QuickContactButtons({ whatsapp, size = "sm" }: { whatsapp: string | nul
         <Phone className={icon} />
       </a>
       <a
-        href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}`}
+        href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(prefill)}`}
         target="_blank"
         rel="noreferrer"
         onClick={stop}
@@ -86,10 +84,17 @@ interface HomeFeed {
   walletPurchaseEnabled: boolean;
 }
 
-export function HomeView() {
+interface HomeViewProps {
+  // Lifted to App.tsx so the "Catégories" dropdown in TopNav (desktop) can
+  // jump straight into a filtered feed instead of only the icon rail below
+  // being able to change it.
+  activeCategory: string | null;
+  onSelectCategory: (name: string) => void;
+}
+
+export function HomeView({ activeCategory, onSelectCategory }: HomeViewProps) {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedListing, setSelectedListing] = useState<any | null>(null);
 
@@ -145,10 +150,6 @@ export function HomeView() {
     fetchHome({ category: activeCategory, city, q: search, minPrice: appliedPriceRange.min, maxPrice: appliedPriceRange.max });
   }, [activeCategory, city, search, appliedPriceRange]);
 
-  const selectCategory = (id: string) => {
-    setActiveCategory((current) => (current === id ? null : id));
-  };
-
   const applyFilters = () => {
     setAppliedPriceRange({ min: minPrice, max: maxPrice });
     setShowFilters(false);
@@ -166,10 +167,12 @@ export function HomeView() {
   return (
     <>
       <div className="min-h-full">
-        {/* Header */}
+        {/* Header — just identity + notifications, kept sticky (mirrors
+            expat-dakar.com's persistent top bar); categories and search
+            scroll away below it instead of competing for header space. */}
         <div className="bg-white px-4 md:px-8 pt-12 md:pt-6 pb-4 sticky top-0 z-40 border-b border-gray-50">
           <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center">
               <div className="relative">
                 <button
                   onClick={() => setShowCityMenu((v) => !v)}
@@ -204,9 +207,42 @@ export function HomeView() {
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
               </button>
             </div>
+          </div>
+        </div>
 
-            {/* Search + filters */}
-            <div className="flex items-center space-x-2 md:max-w-md">
+        {/* Categories — same order as expat-dakar.com: category rail first,
+            search below it. */}
+        <div className="px-4 md:px-8 pt-6">
+          <div className="max-w-6xl mx-auto">
+          <h2 className="text-lg font-bold mb-4 text-gray-900">Catégories</h2>
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide md:flex-wrap md:justify-center md:overflow-visible">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => onSelectCategory(cat.name)}
+                className="flex flex-col items-center space-y-2 min-w-[72px]"
+              >
+                <div
+                  className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl border transition-colors ${
+                    activeCategory === cat.name
+                      ? "bg-orange-600 border-orange-600"
+                      : "bg-orange-50 border-orange-100"
+                  }`}
+                >
+                  {cat.icon}
+                </div>
+                <span className="text-xs font-medium text-gray-700">{cat.name}</span>
+              </button>
+            ))}
+          </div>
+          </div>
+        </div>
+
+        {/* Search + filters — centered as a unit at desktop widths instead
+            of hugging the left edge of the max-w-6xl column. */}
+        <div className="px-4 md:px-8 py-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center space-x-2 md:max-w-md md:mx-auto">
               <div className="relative flex-1">
                 <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -225,33 +261,6 @@ export function HomeView() {
                 {filtersActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-600 rounded-full border-2 border-white" />}
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Categories */}
-        <div className="px-4 md:px-8 py-6">
-          <div className="max-w-6xl mx-auto">
-          <h2 className="text-lg font-bold mb-4 text-gray-900">Catégories</h2>
-          <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => selectCategory(cat.name)}
-                className="flex flex-col items-center space-y-2 min-w-[72px]"
-              >
-                <div
-                  className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl border transition-colors ${
-                    activeCategory === cat.name
-                      ? "bg-orange-600 border-orange-600"
-                      : "bg-orange-50 border-orange-100"
-                  }`}
-                >
-                  {cat.icon}
-                </div>
-                <span className="text-xs font-medium text-gray-700">{cat.name}</span>
-              </button>
-            ))}
-          </div>
           </div>
         </div>
 
@@ -303,7 +312,12 @@ export function HomeView() {
               {!feed || feed.listings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 font-medium">Aucune annonce pour le moment.</div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                // auto-fill instead of fixed sm/lg/xl breakpoints — the number
+                // of columns adjusts continuously to whatever width fits a
+                // 220px card, the way expat-dakar.com's grid does, rather than
+                // jumping at three hardcoded widths. Mobile (below sm) stays a
+                // single column of the horizontal-row card, unaffected.
+                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 sm:gap-6">
                   {feed.listings.map((listing) => {
                     const chip = summarizeAttributes(listing.attributes, 2);
                     return (
@@ -335,7 +349,7 @@ export function HomeView() {
                         </div>
 
                         {/* Image */}
-                        <div className="relative w-28 h-28 sm:w-full sm:h-auto sm:aspect-[4/5] flex-shrink-0 bg-gray-100">
+                        <div className="relative w-28 h-28 sm:w-full sm:h-auto sm:aspect-[4/3] flex-shrink-0 bg-gray-100">
                           <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" />
                           {listing.featured && <VedetteBadge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 !text-[9px] sm:!text-[10px]" />}
                           <FavoriteButton listingId={listing.id} className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 !p-1.5" />
@@ -368,14 +382,12 @@ export function HomeView() {
                             )}
                           </div>
 
-                          <p className="hidden sm:block text-gray-600 text-sm line-clamp-2 mt-2">{listing.description}</p>
-
                           <div className="flex-1" />
                           <div className="flex items-center justify-between mt-2 sm:mt-3">
                             <span className="font-black text-orange-600 text-base sm:text-lg whitespace-nowrap">
                               {Number(listing.price).toLocaleString("fr-FR")} {listing.currency}
                             </span>
-                            <QuickContactButtons whatsapp={listing.whatsapp} size="sm" />
+                            <QuickContactButtons whatsapp={listing.whatsapp} title={listing.title} size="sm" />
                           </div>
                         </div>
                       </motion.div>

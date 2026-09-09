@@ -119,10 +119,12 @@ export function ProductDetailView({ listing, onBack, onPurchased, walletPurchase
       </div>
 
       <div className="flex-1 overflow-y-auto pb-24">
-        {/* Image */}
-        <div className="w-full aspect-square bg-gray-100 relative">
-          <img 
-            src={listing.image} 
+        {/* Image — square on mobile (full-bleed edge to edge), a shorter
+            16:9 band on desktop so the title/price/vendor info is visible
+            without scrolling inside the fixed-height md:h-[85vh] card. */}
+        <div className="w-full aspect-square md:aspect-video bg-gray-100 relative">
+          <img
+            src={listing.image}
             alt={listing.title}
             className="w-full h-full object-cover"
           />
@@ -205,7 +207,7 @@ export function ProductDetailView({ listing, onBack, onPurchased, walletPurchase
                   <span className="text-[11px] font-bold">Appeler</span>
                 </a>
                 <a
-                  href={`https://wa.me/${listing.whatsapp.replace(/[^0-9]/g, "")}`}
+                  href={`https://wa.me/${listing.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${listing.title}".`)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex flex-col items-center justify-center space-y-1 bg-[#25D366] rounded-xl py-3 text-white"

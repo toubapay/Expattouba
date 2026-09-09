@@ -1,3 +1,9 @@
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+}
+
 export interface Listing {
   id: string;
   vendorId: string;

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'api_client.dart';
 
@@ -15,6 +16,8 @@ class ListingRepository {
     required String description,
     required num price,
     String? category,
+    String? city,
+    Map<String, dynamic>? attributes,
     Uint8List? imageBytes,
   }) async {
     try {
@@ -25,6 +28,8 @@ class ListingRepository {
           'description': description,
           'price': price.toString(),
           if (category != null && category.isNotEmpty) 'category': category,
+          if (city != null && city.isNotEmpty) 'city': city,
+          if (attributes != null) 'attributes': jsonEncode(attributes),
         },
         imageBytes: imageBytes,
       );
@@ -52,15 +57,21 @@ class ListingRepository {
     return (result as Map<String, dynamic>)['description']?.toString() ?? '';
   }
 
+  /// phone/pin are required by the server only when the account has no
+  /// phone number yet (Google sign-in) — see server.ts's onboard route.
   Future<void> onboardVendor({
     required String boutiqueName,
     required String whatsappNumber,
     required String address,
+    String? phone,
+    String? pin,
   }) async {
     await api.post('/api/v1/vendors/onboard', body: {
       'boutiqueName': boutiqueName,
       'whatsappNumber': whatsappNumber,
       'address': address,
+      if (phone != null) 'phone': phone,
+      if (pin != null) 'pin': pin,
     });
   }
 }

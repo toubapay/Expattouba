@@ -18,23 +18,37 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
   final _nameController = TextEditingController();
   final _whatsappController = TextEditingController();
   final _addressController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _pinController = TextEditingController();
   bool _submitting = false;
 
   Future<void> _submit() async {
+    final auth = context.read<AuthService>();
+    final needsPhone = auth.dbUser?.phoneNumber == null;
+
     if (_nameController.text.trim().isEmpty ||
         _whatsappController.text.trim().isEmpty ||
         _addressController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tous les champs sont requis.')));
       return;
     }
+    if (needsPhone) {
+      if (_phoneController.text.trim().isEmpty || !RegExp(r'^\d{4}$').hasMatch(_pinController.text.trim())) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Numéro de téléphone et code PIN (4 chiffres) requis.')),
+        );
+        return;
+      }
+    }
     setState(() => _submitting = true);
     try {
-      final auth = context.read<AuthService>();
       final repo = ListingRepository(auth.api);
       await repo.onboardVendor(
         boutiqueName: _nameController.text.trim(),
         whatsappNumber: _whatsappController.text.trim(),
         address: _addressController.text.trim(),
+        phone: needsPhone ? _phoneController.text.trim() : null,
+        pin: needsPhone ? _pinController.text.trim() : null,
       );
       await auth.refreshUser();
     } on ApiException catch (e) {
@@ -49,11 +63,14 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     _nameController.dispose();
     _whatsappController.dispose();
     _addressController.dispose();
+    _phoneController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final needsPhone = context.watch<AuthService>().dbUser?.phoneNumber == null;
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -66,6 +83,42 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               const SizedBox(height: 8),
               const Text('Rejoignez SeneMarket et commencez à vendre.', style: TextStyle(color: AppColors.gray500)),
               const SizedBox(height: 24),
+              if (needsPhone) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.orangeLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.orange.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Un numéro de téléphone et un code PIN sont requis avant de pouvoir vendre.',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.orangeDark),
+                      ),
+                      const SizedBox(height: 16),
+                      const _FieldLabel('Numéro de téléphone'),
+                      TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(hintText: '77 000 00 00'),
+                      ),
+                      const SizedBox(height: 16),
+                      const _FieldLabel('Code PIN (4 chiffres)'),
+                      TextField(
+                        controller: _pinController,
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        maxLength: 4,
+                        decoration: const InputDecoration(hintText: '••••'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               const _FieldLabel('Nom de la boutique'),
               TextField(controller: _nameController, decoration: const InputDecoration(hintText: 'Ex: Dakar Sneakz')),
               const SizedBox(height: 16),

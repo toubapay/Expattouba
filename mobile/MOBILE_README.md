@@ -167,3 +167,28 @@ to actually be wrong":
    backend.
 4. Everything Paydunya- and Google-Sign-In-related, per the two sections
    above — both are architecturally complete but genuinely unverified.
+
+## Feature parity with the web app
+
+This client was brought up to date with two rounds of web changes made
+after it was first written: categories with structured fields
+(Immobilier/Véhicules/Emploi — `lib/theme/category_fields.dart`),
+city/price/text search (`lib/screens/home/home_screen.dart`), favorites
+(`lib/services/favorites_repository.dart`,
+`lib/screens/profile/favorites_screen.dart`), and the redesigned home
+feed (compact horizontal rows on a narrow screen, spec chips, quick
+call/WhatsApp buttons, a VEDETTE badge on every featured card, real
+relative dates). Every request/response shape this update relies on was
+cross-checked directly against the actual Express routes and Drizzle
+schema (not written from memory) — but the *rendering* of it, same as
+everything else in this app, has not been seen by a Flutter compiler.
+Two spots most worth a first look once you can build this:
+
+- `home_screen.dart`'s compact row card uses a fixed `childAspectRatio:
+  2.9` in the `SliverGrid` to budget its height (title, chip, location/
+  date, price+contact row) — if a long title or an unusually large spec
+  chip pushes past that on a real device, this is the number to adjust.
+- `product_detail_screen.dart`'s attribute grid sizes each box off a
+  `LayoutBuilder` rather than the screen width specifically so it stays
+  correct inside the 640px-capped wide layout — worth confirming both
+  breakpoints render without overflow.
