@@ -235,7 +235,7 @@ export function HomeView() {
         <div className="px-4 md:px-8 py-6">
           <div className="max-w-6xl mx-auto">
           <h2 className="text-lg font-bold mb-4 text-gray-900">Catégories</h2>
-          <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide md:flex-wrap md:justify-center md:overflow-visible">
             {categories.map((cat) => (
               <button
                 key={cat.id}
